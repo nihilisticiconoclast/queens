@@ -46,6 +46,25 @@ let cursor = 0, loadToken = 0, drag = null;
 const N = () => puzzle.size;
 const canPlay = () => puzzle && !solved && !paused && !loading;
 
+// Inside an embedded viewer the page's own URL isn't the one people share,
+// so "Copy link" copies the bare sheet key instead.
+const framed = (() => { try { return window.self !== window.top; } catch { return true; } })();
+
+// The sheet key lives in the address after a # (10-K7Q2MX is a valid
+// fragment). Older ?seed= links still open.
+function keyFromAddress() {
+  let hash = '';
+  try { hash = decodeURIComponent(location.hash.slice(1)); } catch { /* malformed */ }
+  return hash || new URLSearchParams(location.search).get('seed');
+}
+
+function writeKeyToAddress(key) {
+  try {
+    if (location.search) history.replaceState(null, '', location.pathname + location.hash);
+    if (keyFromAddress() !== key) location.replace(`#${key}`);
+  } catch { /* some sandboxes refuse */ }
+}
+
 // ─── Puzzle generation: a Web Worker, or the main thread as a fallback ─────
 let worker = null, workerBroken = false, requestId = 0;
 const pending = new Map();
@@ -317,7 +336,7 @@ function showSheet() {
   ui.difficulty.title = `Hardest deduction needed: ${puzzle.difficulty.toLowerCase()}`;
   for (const b of ui.sizes.children) b.setAttribute('aria-pressed', String(Number(b.dataset.size) === n));
   showRecord();
-  try { history.replaceState(null, '', `${location.pathname}?seed=${encodeURIComponent(puzzle.key)}`); } catch { /* sandboxed */ }
+  writeKeyToAddress(puzzle.key);
   document.title = `Queens · ${puzzle.key}`;
 }
 
@@ -706,14 +725,12 @@ function flash(button, text) {
 
 async function copyLink() {
   if (!puzzle) return;
-  const url = new URL(location.href);
-  url.search = `?seed=${encodeURIComponent(puzzle.key)}`;
-  url.hash = '';
+  const text = framed ? puzzle.key : `${location.origin}${location.pathname}#${puzzle.key}`;
   try {
-    await navigator.clipboard.writeText(url.href);
+    await navigator.clipboard.writeText(text);
     flash(ui.copy, 'Copied');
   } catch {
-    setMessage(`Link to this sheet: ${url.href}`);
+    setMessage(framed ? `This sheet's key is ${puzzle.key}.` : `Link to this sheet: ${text}`);
   }
 }
 
@@ -735,6 +752,7 @@ function wireControls() {
   ui.newBtn.addEventListener('click', () => load(settings.size, randomCode()));
   ui.pause.addEventListener('click', () => (paused ? resumeGame() : pauseGame()));
   ui.veilBtn.addEventListener('click', resumeGame);
+  if (framed) ui.copy.textContent = 'Copy key';
   ui.copy.addEventListener('click', copyLink);
   ui.undo.addEventListener('click', undo);
   ui.redo.addEventListener('click', redo);
@@ -781,8 +799,14 @@ function init() {
   if (window.TunnelFigure) mountHouseFigures();
   else $('tunnel-js')?.addEventListener('load', mountHouseFigures, { once: true });
 
+  // Typing or pasting a key into the address, or stepping back, opens it.
+  window.addEventListener('hashchange', () => {
+    const parsed = parseKey(keyFromAddress(), settings.size);
+    if (parsed && formatKey(parsed.size, parsed.code) !== puzzle?.key) load(parsed.size, parsed.code);
+  });
+
   const saved = store.get('queens.game', null);
-  const fromUrl = new URLSearchParams(location.search).get('seed');
+  const fromUrl = keyFromAddress();
   const savedKey = saved && typeof saved.key === 'string' ? parseKey(saved.key, settings.size) : null;
   const resumable = savedKey && !saved.solved;
 

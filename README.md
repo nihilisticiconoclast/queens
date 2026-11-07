@@ -10,7 +10,7 @@ Place one queen in every row, every column and every coloured region. No two que
 
 - **Exactly one solution.** Every board is checked by exhaustive search before it is shown.
 - **No guessing needed.** A second solver finishes every board using only human-style deductions (listed below), and never needs a group of more than three units.
-- **Same key, same board.** A *sheet key* such as `10-K7Q2MX` (size, then code) seeds every random choice, so it draws the identical board — regions and colours — on any device. The address bar carries the key (`?seed=10-K7Q2MX`), so links and bookmarks reopen a board. Any word works as a key: `12-gloucester`.
+- **Same key, same board.** A *sheet key* such as `10-K7Q2MX` (size, then code) seeds every random choice, so it draws the identical board — regions and colours — on any device. The address carries the key (`…/queens/#10-K7Q2MX`; older `?seed=` links still work), so links and bookmarks reopen a board. Any word works as a key: `12-gloucester`.
 - **No free queens.** Regions are between 2 squares and 3 × the board width.
 
 ## Features

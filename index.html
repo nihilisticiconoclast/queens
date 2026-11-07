@@ -2,13 +2,16 @@
 <html lang="en-GB">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Queens</title>
 <meta name="description" content="Place one queen in every row, column and colour region, with no two touching. Endless puzzles from 8 × 8 to 14 × 14, each with exactly one solution, and a sheet key that reopens any board.">
 <meta name="theme-color" content="#EDE7D3">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' fill='%23EDE7D3'/%3E%3Cpath fill='%234A3823' d='M4 17.2 3.3 8.4l4.6 3.3L12 5.6l4.1 6.1 4.6-3.3-.7 8.8ZM4.2 18.5h15.6v2.2H4.2Z'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- The house fonts (plus Fraunces italic, for the stamp), loaded directly so
+     they don't wait on the tokens stylesheet. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..700&family=Public+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <!-- House style (Tunnel): linked, never copied, so updates reach every page. -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/nihilisticiconoclast/cuddly-lamp@main/assets/tokens.css">
 <link rel="stylesheet" href="css/queens.css?v=1">
@@ -122,7 +125,7 @@
 
   <section>
     <h2>Sheets</h2>
-    <p>A sheet key such as <code>10-K7Q2MX</code> names a puzzle: the number is the board size and the rest is a code. The key seeds every random choice the generator makes, so the same key always draws the same board, with the same regions and colours, on any device. The address bar carries the key, so a bookmark or a shared link reopens that board.</p>
+    <p>A sheet key such as <code>10-K7Q2MX</code> names a puzzle: the number is the board size and the rest is a code. The key seeds every random choice the generator makes, so the same key always draws the same board, with the same regions and colours, on any device. The address carries the key after a <code>#</code>, so a bookmark or a shared link reopens that board.</p>
     <p>Keys ignore case and punctuation, and any word will do: <code>12-gloucester</code> is as good a key as a random one. A key without a size uses the size currently selected.</p>
   </section>
 
