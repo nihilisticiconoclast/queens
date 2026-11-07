@@ -1,0 +1,11 @@
+{
+  "name": "queens",
+  "private": true,
+  "description": "Queens logic puzzle: seeded boards from 8×8 to 14×14, each with exactly one solution reachable by deduction.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "serve": "python3 -m http.server 8000"
+  },
+  "engines": { "node": ">=20" }
+}
