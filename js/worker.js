@@ -1,7 +1,7 @@
 // worker.js — generates puzzles off the main thread, so the page never stalls
 // while a large board is being repaired into a unique one.
 
-import { generatePuzzle } from './generator.js?v=1';
+import { generatePuzzle } from './generator.js?v=2';
 
 self.onmessage = ({ data }) => {
   const { id, size, code } = data;

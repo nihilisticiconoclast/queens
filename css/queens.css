@@ -57,7 +57,7 @@ body {
 .nav a:hover { color: var(--ink); }
 
 /* ─── Layout ───────────────────────────────────────────────────────────── */
-.game {
+.game, .lab {
   display: grid;
   grid-template-columns: auto var(--panel);
   grid-template-areas: "play status" "play controls";
@@ -67,6 +67,7 @@ body {
   row-gap: 22px;
   padding-block: clamp(18px, 3vw, 36px) clamp(28px, 4vw, 48px);
 }
+.lab { grid-template-areas: "play status" "play controls" "shortcuts shortcuts"; grid-template-rows: auto 1fr auto; }
 .play { grid-area: play; min-width: 0; }
 .status { grid-area: status; display: grid; gap: 14px; align-content: start; padding-top: 1.35rem; }
 .controls { grid-area: controls; display: grid; gap: 18px; align-content: start; }
@@ -142,6 +143,8 @@ body {
 .cell.is-queen::after { --glyph: var(--glyph-crown); --glyph-size: 64%; opacity: 1; animation: pop .22s cubic-bezier(.3, 1.6, .55, 1); }
 .cell.is-auto::after  { --glyph: var(--glyph-x); --glyph-size: 26%; opacity: .32; }
 @keyframes pop { from { transform: scale(.6); } }
+.cell.is-cross::after, .cell.is-queen::after { transition-delay: var(--delay, 0ms); animation-delay: var(--delay, 0ms); }
+.board--watch { cursor: default; }
 
 /* A broken rule hatches the offending row, column or region, map-style. */
 .cell.is-clash::before {
@@ -265,6 +268,90 @@ legend { padding: 0; margin-bottom: .45rem; }
 .record dt { font-size: .85rem; color: var(--contour); }
 .record dd { margin: 0; font-family: var(--font-data); font-size: 1.15rem; font-variant-numeric: tabular-nums; }
 
+/* ─── Tabs ─────────────────────────────────────────────────────────────── */
+.tabs { display: flex; gap: 1.6rem; padding-top: 6px; border-bottom: var(--rule); }
+.tab {
+  background: none; border: 0; border-bottom: 3px solid transparent; border-radius: 0;
+  padding: .55rem .05rem .45rem; margin-bottom: -1px; cursor: pointer;
+  font: inherit; font-size: 1rem; color: var(--contour);
+}
+.tab:hover { color: var(--ink); }
+.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); font-weight: 600; }
+.tab:focus-visible { outline: 2px solid var(--incident); outline-offset: 2px; }
+
+/* ─── Solver panel ─────────────────────────────────────────────────────── */
+.counter { margin: 0; display: flex; align-items: baseline; gap: .55rem; }
+.of { font-size: .95rem; color: var(--contour); }
+.narration { min-height: 6.2em; margin-top: .85rem; max-width: 64ch; }
+.narration p { margin: 0 0 .45rem; }
+.narration-head { display: flex; gap: .5rem; align-items: center; min-height: 1.6rem; }
+.tag, .chip {
+  display: inline-block; font-size: .82rem; line-height: 1.5; padding: 0 .5rem;
+  border: 1px solid color-mix(in srgb, var(--index) 55%, transparent); color: var(--ink);
+}
+.tag { font-weight: 600; }
+.tag[data-level="3"], .tag[data-level="4"], .chip[data-level="3"], .chip[data-level="4"] {
+  border-color: var(--amber); background: color-mix(in srgb, var(--amber) 14%, transparent);
+}
+.new { font-size: .82rem; color: var(--paper); background: var(--incident); padding: 0 .5rem; line-height: 1.5; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips[hidden] { display: none; }
+
+/* The solve as an elevation profile: one bar per step, height by difficulty.
+   Amber marks the high ground (Hard and Expert), as on the house figures. */
+.profile {
+  display: flex; align-items: flex-end; gap: 2px; height: 46px; margin-top: .6rem;
+  padding-bottom: 4px; border-bottom: 1px solid var(--contour); max-width: var(--board);
+}
+.bar {
+  flex: 1 1 0; min-width: 3px; max-width: 22px; height: calc(var(--h) * 100%);
+  border: 0; border-radius: 0; padding: 0; cursor: pointer;
+  background: color-mix(in srgb, var(--contour) 28%, transparent);
+}
+.bar[data-level="1"] { --h: .3; } .bar[data-level="2"] { --h: .55; } .bar[data-level="3"] { --h: .8; } .bar[data-level="4"] { --h: 1; }
+.bar.is-done { background: var(--index); }
+.bar.is-done[data-level="3"], .bar.is-done[data-level="4"] { background: var(--amber); }
+.bar.is-current { outline: 2px solid var(--incident); outline-offset: 1px; }
+.bar:hover { background: var(--ink); }
+.bar:focus-visible { outline: 2px solid var(--incident); outline-offset: 2px; }
+
+.speed { display: grid; grid-template-columns: auto 1fr; gap: .2rem .8rem; align-items: center; font-size: .9rem; }
+.speed label { color: var(--contour); }
+.speed input { width: 100%; accent-color: var(--ink); }
+.speed output { grid-column: 2; font-family: var(--font-data); font-size: .82rem; color: var(--contour); }
+.start { border: 0; margin: 0; padding: 0; display: grid; gap: .3rem; min-width: 0; }
+.radio { display: flex; gap: .55rem; align-items: center; font-size: .92rem; cursor: pointer; }
+.radio input { accent-color: var(--ink); margin: 0; }
+.radio input:disabled + span { color: color-mix(in srgb, var(--contour) 60%, transparent); }
+.note { margin: .1rem 0 0; font-size: .84rem; color: var(--contour); line-height: 1.45; }
+
+/* ─── Shortcut cards ───────────────────────────────────────────────────── */
+.shortcuts { grid-area: shortcuts; border-top: var(--rule); padding-top: clamp(18px, 3vw, 30px); margin-top: 8px; }
+.shortcuts-head { display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap; margin-bottom: .6rem; }
+.shortcuts-head h2 { font-size: var(--step-2, 1.6rem); margin: 0; }
+.sc-count { margin: 0; font-family: var(--font-data); font-size: .9rem; color: var(--contour); }
+.sc-empty { color: var(--contour); max-width: 64ch; }
+.cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); gap: 14px; }
+.card {
+  display: grid; grid-template-columns: auto 1fr; gap: .9rem; align-items: start;
+  padding: 14px; border: 1px solid color-mix(in srgb, var(--contour) 40%, transparent);
+}
+.card[data-level="3"], .card[data-level="4"] { border-left: 3px solid var(--amber); }
+.card.is-new { animation: arrive 1.6s ease; }
+@keyframes arrive { 0%, 40% { border-color: var(--incident); background: color-mix(in srgb, var(--incident) 10%, transparent); } }
+.card h3 { font-family: var(--font-display); font-size: 1.15rem; margin: 0 0 .3rem; }
+.card-level { font-family: var(--font-body); font-size: .78rem; font-weight: 400; color: var(--contour); margin-left: .3rem; }
+.card-rule { margin: 0 0 .4rem; font-size: .92rem; line-height: 1.45; }
+.card-meta { margin: 0 0 .35rem; font-size: .82rem; color: var(--contour); }
+.key-inline { font-family: var(--font-data); white-space: nowrap; }
+.diagram { display: block; --diagram-ground: color-mix(in srgb, var(--contour) 14%, var(--paper)); }
+.diagram .d-grid { fill: none; stroke: color-mix(in srgb, var(--index) 30%, transparent); stroke-width: .03; }
+.diagram .d-bounds { fill: none; stroke: var(--ink); stroke-width: .09; stroke-linecap: square; }
+.diagram .d-x { fill: none; stroke: color-mix(in srgb, var(--ink) 55%, transparent); stroke-width: .09; }
+.diagram .d-x.is-new { stroke: var(--incident); stroke-width: .12; }
+.diagram .d-q { fill: var(--ink); }
+.diagram .d-q.is-new { fill: var(--incident); }
+
 /* ─── Notes ────────────────────────────────────────────────────────────── */
 .notes {
   border-top: var(--rule);
@@ -291,6 +378,8 @@ legend { padding: 0; margin-bottom: .45rem; }
     grid-template-rows: auto;
     row-gap: 14px;
   }
+  .lab { grid-template-columns: minmax(0, 1fr); grid-template-areas: "status" "play" "controls" "shortcuts"; grid-template-rows: auto; row-gap: 14px; }
+  .profile { max-width: none; }
   .status { padding-top: 0; grid-template-columns: 1fr auto; align-items: center; gap: 6px 12px; }
   .clock-row { gap: .8rem; justify-content: flex-start; }
   .sheet { justify-content: flex-end; text-align: right; }

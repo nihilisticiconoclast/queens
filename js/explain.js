@@ -1,7 +1,7 @@
 // explain.js — turns solver output into sentences a player can act on.
 
-import { PALETTE } from './palette.js?v=1';
-import { unitType, unitNumber, ROW, COL } from './solver.js?v=1';
+import { PALETTE } from './palette.js?v=2';
+import { unitType, unitNumber, ROW, COL } from './solver.js?v=2';
 
 export const colLetter = (c) => String.fromCharCode(65 + c);
 export const cellRef = (i, N) => `${colLetter(i % N)}${Math.floor(i / N) + 1}`;
@@ -11,9 +11,9 @@ const NUMBER_WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six'];
 const word = (n) => NUMBER_WORDS[n] ?? String(n);
 const capitalise = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
-function joinList(items) {
+function joinList(items, conj = 'and') {
   if (items.length <= 1) return items.join('');
-  return `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`;
+  return `${items.slice(0, -1).join(', ')} ${conj} ${items.at(-1)}`;
 }
 
 // "row 4", "columns B and E", "the mint region", "the mint and coral regions"
@@ -28,8 +28,8 @@ function unitsLabel(idx, puzzle, units) {
 
 const kindPlural = (idx, u) => ['rows', 'columns', 'regions'][unitType(idx, u)];
 
-function refsLabel(cells, N) {
-  return joinList([...cells].sort((a, b) => a - b).map((i) => cellRef(i, N)));
+function refsLabel(cells, N, conj = 'and') {
+  return joinList([...cells].sort((a, b) => a - b).map((i) => cellRef(i, N)), conj);
 }
 
 export function describeStep(step, idx, puzzle) {
@@ -53,10 +53,11 @@ export function describeStep(step, idx, puzzle) {
     }
     case 'attack': {
       const target = unitsLabel(idx, puzzle, step.units);
-      const cells = refsLabel(step.cross, N);
-      return step.cross.length === 1
-        ? `A queen on ${cells} would rule out every available square of ${target}, so ${cells} can be crossed out.`
-        : `A queen on any of ${cells} would rule out every available square of ${target}, so they can all be crossed out.`;
+      if (step.cross.length === 1) {
+        const cell = refsLabel(step.cross, N);
+        return `A queen on ${cell} would rule out every available square of ${target}, so ${cell} can be crossed out.`;
+      }
+      return `A queen on any of ${refsLabel(step.cross, N, 'or')} would rule out every available square of ${target}, so they can all be crossed out.`;
     }
     default:
       return '';

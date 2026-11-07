@@ -1,9 +1,12 @@
-// game.js — the page: board, marking, clock, sheets, hints and saved progress.
+// game.js — the page: the Play tab (board, marking, clock, sheets, hints,
+// saved progress) and the switch to the Solver tab (lab.js).
 
-import { MIN_SIZE, MAX_SIZE, randomCode, parseKey, formatKey } from './rng.js?v=1';
-import { buildIndex, findStep, applyQueen, CROSS } from './solver.js?v=1';
-import { PALETTE } from './palette.js?v=1';
-import { describeStep, describeClash, cellRef, colLetter, regionName } from './explain.js?v=1';
+import { MIN_SIZE, MAX_SIZE, randomCode, parseKey, formatKey } from './rng.js?v=2';
+import { buildIndex, findStep, applyQueen, CROSS } from './solver.js?v=2';
+import { describeStep, describeClash, cellRef } from './explain.js?v=2';
+import { classifyStep, SHORTCUT } from './shortcuts.js?v=2';
+import { BoardView } from './board.js?v=2';
+import { createLab, noteShortcut } from './lab.js?v=2';
 
 const EMPTY = 0, X = 1, Q = 2;                 // what the player has put on a square
 const cycle = (m) => (m + 1) % 3;              // tap: empty → cross → queen → empty
@@ -33,15 +36,20 @@ const ui = {
   copy: $('copy'), sizes: $('sizes'), newBtn: $('new'), openForm: $('open-form'), openInput: $('sheet-input'),
   openError: $('open-error'), undo: $('undo'), redo: $('redo'), clear: $('clear'), hint: $('hint'),
   auto: $('auto'), bestLabel: $('best-label'), best: $('best'), solvedLabel: $('solved-label'), solvedCount: $('solved-count'),
+  tabs: { play: $('tab-play'), solver: $('tab-solver') }, panels: { play: $('panel-play'), solver: $('panel-solver') },
 };
-const SVG_NS = 'http://www.w3.org/2000/svg';
+const playView = new BoardView(ui.frame);
 
 // ─── Game state ────────────────────────────────────────────────────────────
-let puzzle = null, idx = null, marks = null, cells = [], hintLayer = null;
+let puzzle = null, idx = null, marks = null, cells = [];
 let undoStack = [], redoStack = [];
 let elapsed = 0, runningSince = null, ticker = null, lastAutosave = 0;
 let solved = false, paused = false, loading = false, hintsUsed = 0, hint = null;
 let cursor = 0, loadToken = 0, drag = null;
+// Help that disqualifies a solve from records: the solver was watched on
+// this sheet, or it's a replay of a sheet already solved.
+let helped = { solver: false, replay: false };
+let tab = 'play', clockWasRunning = false;
 
 const N = () => puzzle.size;
 const canPlay = () => puzzle && !solved && !paused && !loading;
@@ -70,19 +78,25 @@ let worker = null, workerBroken = false, requestId = 0;
 const pending = new Map();
 
 function mainThread(size, code) {
-  return import('./generator.js?v=1').then((m) => m.generatePuzzle(size, code));
+  return import('./generator.js?v=2').then((m) => m.generatePuzzle(size, code));
 }
 
-function makePuzzle(size, code) {
-  if (!workerBroken && pending.size && worker) {
-    // A newer request supersedes the one in flight: drop it.
-    worker.terminate();
-    worker = null;
-    pending.clear();
+// Each tab asks on its own channel. A newer request on a channel supersedes
+// that channel's request in flight (the worker is restarted and the other
+// channel's work is sent again), so neither tab can cancel the other's.
+function makePuzzle(size, code, channel = 'play') {
+  if (!workerBroken && worker) {
+    const stale = [...pending].filter(([, job]) => job.channel === channel);
+    if (stale.length) {
+      worker.terminate();
+      worker = null;
+      for (const [id] of stale) pending.delete(id);
+    }
   }
   if (!workerBroken && !worker) {
     try {
-      worker = new Worker(new URL('./worker.js?v=1', import.meta.url), { type: 'module' });
+      worker = new Worker(new URL('./worker.js?v=2', import.meta.url), { type: 'module' });
+      for (const [id, job] of pending) worker.postMessage({ id, size: job.size, code: job.code });
       worker.onmessage = ({ data }) => {
         const job = pending.get(data.id);
         if (!job) return;
@@ -107,7 +121,7 @@ function makePuzzle(size, code) {
   if (workerBroken || !worker) return mainThread(size, code);
   return new Promise((resolve, reject) => {
     const id = ++requestId;
-    pending.set(id, { resolve, reject, size, code });
+    pending.set(id, { resolve, reject, size, code, channel });
     worker.postMessage({ id, size, code });
   });
 }
@@ -152,6 +166,7 @@ function startGame(p, restore) {
   hint = null; solved = false; paused = false;
   elapsed = restore?.elapsed > 0 ? restore.elapsed : 0;
   hintsUsed = restore?.hints > 0 ? restore.hints : 0;
+  helped = { solver: !!restore?.helped?.solver, replay: !!restore?.helped?.replay };
   settings.size = p.size;
   saveSettings();
   cursor = 0;
@@ -165,107 +180,16 @@ function startGame(p, restore) {
   // A game restored mid-way, or one that finished loading in a background
   // tab, starts paused: the clock only runs while you can see the board.
   if ((restore && marks.some((m) => m !== EMPTY)) || document.hidden) pauseGame();
+  if (tab !== 'play') { clockWasRunning = runningSince != null; stopClock(); }
   saveGame();
+  lab.follow(p);
 }
 
 // ─── Building the board ────────────────────────────────────────────────────
 function buildBoard() {
   const n = N();
-  ui.frame.style.setProperty('--n', n);
-  ui.board.replaceChildren();
-  ui.board.classList.remove('is-solved');
-  ui.board.setAttribute('aria-label', `Queens board, ${n} by ${n}. Arrow keys move; space marks a square.`);
-  cells = [];
-  for (let r = 0; r < n; r++) {
-    const row = document.createElement('div');
-    row.className = 'row';
-    row.setAttribute('role', 'row');
-    for (let c = 0; c < n; c++) {
-      const i = r * n + c;
-      const cell = document.createElement('div');
-      cell.className = 'cell';
-      cell.setAttribute('role', 'gridcell');
-      cell.tabIndex = i === cursor ? 0 : -1;
-      cell.style.setProperty('--tint', PALETTE[puzzle.colours[puzzle.regions[i]]].hex);
-      cell.style.setProperty('--r', r);
-      row.appendChild(cell);
-      cells.push(cell);
-    }
-    ui.board.appendChild(row);
-  }
-  ui.board.appendChild(boardLines());
-  hintLayer = document.createElementNS(SVG_NS, 'svg');
-  hintLayer.setAttribute('class', 'hint-lines');
-  hintLayer.setAttribute('viewBox', `0 0 ${n} ${n}`);
-  hintLayer.setAttribute('preserveAspectRatio', 'none');
-  hintLayer.setAttribute('aria-hidden', 'true');
-  ui.board.appendChild(hintLayer);
-
-  ui.colRefs.replaceChildren(...Array.from({ length: n }, (_, c) => span(colLetter(c))));
-  ui.rowRefs.replaceChildren(...Array.from({ length: n }, (_, r) => span(String(r + 1))));
-}
-
-function span(text) {
-  const s = document.createElement('span');
-  s.textContent = text;
-  return s;
-}
-
-// Region borders as merged straight runs: heavy where two regions meet,
-// hairline inside a region. Drawn in grid units over the cells.
-function edgeRuns(n, isEdge) {
-  const d = [];
-  for (let c = 1; c < n; c++) {             // vertical lines x = c
-    let start = -1;
-    for (let r = 0; r <= n; r++) {
-      const on = r < n && isEdge(r * n + c - 1, r * n + c);
-      if (on && start < 0) start = r;
-      if (!on && start >= 0) { d.push(`M${c} ${start}V${r}`); start = -1; }
-    }
-  }
-  for (let r = 1; r < n; r++) {             // horizontal lines y = r
-    let start = -1;
-    for (let c = 0; c <= n; c++) {
-      const on = c < n && isEdge((r - 1) * n + c, r * n + c);
-      if (on && start < 0) start = c;
-      if (!on && start >= 0) { d.push(`M${start} ${r}H${c}`); start = -1; }
-    }
-  }
-  return d.join('');
-}
-
-function boardLines() {
-  const n = N(), reg = puzzle.regions;
-  const svg = document.createElementNS(SVG_NS, 'svg');
-  svg.setAttribute('class', 'board-lines');
-  svg.setAttribute('viewBox', `0 0 ${n} ${n}`);
-  svg.setAttribute('preserveAspectRatio', 'none');
-  svg.setAttribute('aria-hidden', 'true');
-  const grid = document.createElementNS(SVG_NS, 'path');
-  grid.setAttribute('class', 'grid');
-  grid.setAttribute('d', edgeRuns(n, (a, b) => reg[a] === reg[b]));
-  const bounds = document.createElementNS(SVG_NS, 'path');
-  bounds.setAttribute('class', 'bounds');
-  bounds.setAttribute('d', edgeRuns(n, (a, b) => reg[a] !== reg[b]) + `M0 0H${n}V${n}H0Z`);
-  svg.append(grid, bounds);
-  return svg;
-}
-
-// Outline of an arbitrary set of cells (for hint highlights).
-function outline(set) {
-  const n = N();
-  const inSet = (r, c) => r >= 0 && r < n && c >= 0 && c < n && set.has(r * n + c);
-  const d = [];
-  for (let r = 0; r < n; r++) {
-    for (let c = 0; c < n; c++) {
-      if (!inSet(r, c)) continue;
-      if (!inSet(r - 1, c)) d.push(`M${c} ${r}H${c + 1}`);
-      if (!inSet(r + 1, c)) d.push(`M${c} ${r + 1}H${c + 1}`);
-      if (!inSet(r, c - 1)) d.push(`M${c} ${r}V${r + 1}`);
-      if (!inSet(r, c + 1)) d.push(`M${c + 1} ${r}V${r + 1}`);
-    }
-  }
-  return d.join('');
+  playView.build(puzzle, { focusable: true, cursor, label: `Queens board, ${n} by ${n}. Arrow keys move; space marks a square.` });
+  cells = playView.cells;
 }
 
 // ─── Rendering ─────────────────────────────────────────────────────────────
@@ -293,29 +217,19 @@ function autoCrosses() {
   return out;
 }
 
-const MARK_WORDS = ['empty', 'crossed out', 'queen'];
-
 function render() {
   if (!puzzle) return;
-  const n = N();
   const { clash, issues } = conflicts();
-  const auto = settings.autoCross ? autoCrosses() : null;
   const h = hint || { focus: [], place: [], cross: [], ring: [] };
-  const focus = new Set(h.focus);
-  for (let i = 0; i < n * n; i++) {
-    const el = cells[i], m = marks[i];
-    el.classList.toggle('is-queen', m === Q);
-    el.classList.toggle('is-cross', m === X);
-    el.classList.toggle('is-auto', m === EMPTY && !!auto && auto[i] === 1);
-    el.classList.toggle('is-clash', clash[i] === 1);
-    el.classList.toggle('hint-focus', focus.has(i));
-    el.classList.toggle('hint-queen', h.place.includes(i));
-    el.classList.toggle('hint-cross', h.cross.includes(i));
-    el.classList.toggle('hint-ring', h.ring.includes(i));
-    const region = regionName(puzzle, puzzle.regions[i]);
-    el.setAttribute('aria-label', `${cellRef(i, n)}, ${region} region, ${MARK_WORDS[m]}`);
-  }
-  hintLayer.innerHTML = focus.size ? `<path d="${outline(focus)}"/>` : '';
+  playView.paint({
+    marks,
+    auto: settings.autoCross ? autoCrosses() : null,
+    clash,
+    focus: h.focus,
+    ghostQueens: h.place,
+    ghostCrosses: h.cross,
+    rings: h.ring,
+  });
   ui.undo.disabled = !undoStack.length || !canPlay();
   ui.redo.disabled = !redoStack.length || !canPlay();
   ui.hint.disabled = !canPlay();
@@ -392,6 +306,7 @@ function clearBoard() {
     for (let i = 0; i < marks.length; i++) setMark(i, EMPTY, ch);
     undoStack = []; redoStack = [];
     solved = false; elapsed = 0; hintsUsed = 0; hint = null;
+    helped.replay = true;
     ui.board.classList.remove('is-solved');
     ui.stamp.hidden = true;
     ui.stamp.classList.remove('is-in');
@@ -608,7 +523,7 @@ function checkWin() {
   const time = Math.round(elapsed);
   const rec = records[n] || { best: null, solved: 0 };
   const previousBest = rec.best;
-  const counts = hintsUsed === 0;      // hinted solves don't set records
+  const counts = hintsUsed === 0 && !helped.solver && !helped.replay; // help means no record
   const isBest = counts && (previousBest == null || time < previousBest);
   rec.solved = (rec.solved || 0) + 1;
   if (isBest) rec.best = time;
@@ -616,7 +531,11 @@ function checkWin() {
   store.set('queens.records', records);
 
   let text = `Solved in ${formatTime(time)}`;
-  if (hintsUsed) text += ` with ${hintsUsed} ${hintsUsed === 1 ? 'hint' : 'hints'}. Hinted times don't count towards your best.`;
+  const aids = [];
+  if (hintsUsed) aids.push(`${hintsUsed} ${hintsUsed === 1 ? 'hint' : 'hints'}`);
+  if (helped.solver) aids.push('the solver');
+  if (helped.replay) text = `Solved again in ${formatTime(time)}. Replays don't count towards your best.`;
+  else if (aids.length) text += ` with ${aids.join(' and ')}. Assisted times don't count towards your best.`;
   else if (previousBest == null) text += `. Your first ${n} × ${n}.`;
   else if (isBest) text += `, a new best for ${n} × ${n} (was ${formatTime(previousBest)}).`;
   else text += `. Your best for ${n} × ${n} is ${formatTime(previousBest)}.`;
@@ -679,7 +598,8 @@ function computeHint() {
   for (let i = 0; i < n * n; i++) if (marks[i] === Q) applyQueen(idx, st, i);
   const step = findStep(idx, st);
   if (step && step.type !== 'contradiction' && (step.place.length || step.cross.length)) {
-    return { text: describeStep(step, idx, puzzle), focus: step.units.flatMap((u) => idx.unitCells[u]),
+    const shortcut = classifyStep(step, idx, st);
+    return { text: `${SHORTCUT[shortcut].name}. ${describeStep(step, idx, puzzle)}`, shortcut, focus: step.units.flatMap((u) => idx.unitCells[u]),
       place: step.place, cross: step.cross, ring: [] };
   }
   const r = sol.findIndex((c, row) => marks[row * n + c] !== Q);
@@ -691,6 +611,7 @@ function giveHint() {
   if (!canPlay()) return;
   if (!hint) {
     hint = computeHint();
+    if (hint.shortcut) noteShortcut(hint.shortcut, puzzle.key);
     hintsUsed++;
     saveGame();
   }
@@ -710,6 +631,7 @@ function saveGame() {
     marks: Array.from(marks).join(''),
     elapsed: Math.round(elapsedNow()),
     hints: hintsUsed,
+    helped,
     solved,
   });
 }
@@ -794,6 +716,74 @@ function mountHouseFigures() {
 }
 
 // ─── Start ─────────────────────────────────────────────────────────────────
+// ─── The Solver tab ────────────────────────────────────────────────────────
+// What the solver may start from when asked to continue from your board:
+// everything you've marked, provided none of it is wrong.
+function playerStart() {
+  if (!puzzle) return { ok: false, reason: 'Nothing to start from yet.' };
+  const n = N(), sol = puzzle.solution;
+  const { issues } = conflicts();
+  if (issues.length) return { ok: false, reason: `${describeClash(issues[0], idx, puzzle)} The solver starts from empty until that's fixed.` };
+  for (let i = 0; i < n * n; i++) {
+    const answer = sol[Math.floor(i / n)] === i % n;
+    if (marks[i] === Q && !answer) return { ok: false, reason: `The queen on ${cellRef(i, n)} isn't part of the solution, so the solver starts from empty.` };
+    if (marks[i] === X && answer) return { ok: false, reason: `The cross on ${cellRef(i, n)} covers a square that needs a queen, so the solver starts from empty.` };
+  }
+  const st = new Uint8Array(n * n);
+  for (let i = 0; i < n * n; i++) if (marks[i] === X) st[i] = CROSS;
+  for (let i = 0; i < n * n; i++) if (marks[i] === Q) applyQueen(idx, st, i);
+  return { ok: true, state: st };
+}
+
+const lab = createLab({
+  frame: $('lab-frame'), veil: $('lab-veil'), veilText: $('lab-veil-text'),
+  count: $('lab-count'), of: $('lab-of'), key: $('lab-key'), difficulty: $('lab-difficulty'), ret: $('lab-return'),
+  tag: $('lab-tag'), newBadge: $('lab-new'), text: $('lab-text'), summary: $('lab-summary'), profile: $('lab-profile'),
+  play: $('lab-play'), next: $('lab-next'), back: $('lab-back'), reset: $('lab-reset'), end: $('lab-end'),
+  speed: $('lab-speed'), speedOut: $('lab-speed-out'), emptyStart: $('lab-start-empty'), boardStart: $('lab-start-board'),
+  startNote: $('lab-start-note'), sizes: $('lab-sizes'), newSheet: $('lab-new-sheet'),
+  scCount: $('sc-count'), scEmpty: $('sc-empty'), scForget: $('sc-forget'), scCards: $('sc-cards'),
+}, {
+  makePuzzle: (size, code) => makePuzzle(size, code, 'lab'),
+  playSheet: () => puzzle,
+  playerStart,
+  solverUsed: (key) => {
+    if (puzzle && key === puzzle.key && !solved && !helped.solver) { helped.solver = true; saveGame(); }
+  },
+});
+
+function showTab(name) {
+  if (name === tab) return;
+  tab = name;
+  for (const k of Object.keys(ui.tabs)) {
+    const on = k === name;
+    ui.tabs[k].setAttribute('aria-selected', String(on));
+    ui.tabs[k].tabIndex = on ? 0 : -1;
+    ui.panels[k].hidden = !on;
+  }
+  if (name === 'solver') {
+    clockWasRunning = runningSince != null;   // your clock waits while you watch
+    stopClock();
+    lab.activate();
+  } else {
+    lab.deactivate();
+    if (clockWasRunning && !paused && !solved && !loading) startClock();
+    render();
+  }
+}
+
+for (const [name, el] of Object.entries(ui.tabs)) {
+  el.addEventListener('click', () => showTab(name));
+  el.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      e.preventDefault();
+      const next = name === 'play' ? 'solver' : 'play';
+      showTab(next);
+      ui.tabs[next].focus();
+    }
+  });
+}
+
 function init() {
   wireControls();
   if (window.TunnelFigure) mountHouseFigures();
@@ -830,5 +820,6 @@ window.queens = {
     key: puzzle.key, size: puzzle.size, solved, paused, loading, hintsUsed,
     elapsed: Math.round(elapsedNow()), marks: Array.from(marks).join(''), regions: puzzle.regions.join(','),
     engine: workerBroken || !worker ? 'main thread' : 'worker',
+    tab, helped: { ...helped }, lab: lab.state,
   },
 };
