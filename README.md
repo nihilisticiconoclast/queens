@@ -15,7 +15,49 @@ Place one queen in every row, every column and every coloured region. No two que
 
 ## Features
 
-Seeded sheets (copy a link, or open any key), sizes 8–14, a clock that pauses when the tab is hidden, undo/redo (a drag is one move), hints that explain the next deduction or point out a mistake, optional auto-cross, conflict hatching, best times per size (hinted solves don't count), and progress that survives a reload. Keyboard: arrows, Space, X, Q, Backspace, Ctrl+Z / Ctrl+Shift+Z.
+Seeded sheets (copy a link, or open any key), sizes 8–14, a clock that pauses when the tab is hidden, undo/redo (a drag is one move), hints that name and explain the next deduction or point out a mistake, optional auto-cross, conflict hatching, best times per size, and progress that survives a reload. Keyboard: arrows, Space, X, Q, Backspace, Ctrl+Z / Ctrl+Shift+Z.
+
+### The Solver tab
+
+Watch a sheet solved one deduction at a time, easiest first, never guessing. Each step first outlines the units it reasons about and shows in teal where it will act, then places the queen or crosses; a queen's crosses ripple outward from it.
+
+- **Play / Step / Back / Reset / End**, and a **speed** slider (0.4 to 10 steps a second). Keyboard: Space, ← →, Home, End.
+- **Difficulty profile**: one bar per step, height by difficulty (amber for Hard and Expert); click a bar to replay that step.
+- **Start from your board**: continue from your Play-tab marks, unless one is wrong (it says which).
+- **Summary** at the end: step count, the hardest step, and every shortcut used.
+- **Watch another sheet** without touching your game; **Back to your sheet** returns. Watching the sheet you're playing marks that game as assisted, as do hints and replays: assisted solves don't set best times.
+
+### Shortcuts
+
+The solver knows four general techniques. Each step is matched to the most specific of 14 named **shortcuts** that fully explains it (`js/shortcuts.js`), and a shortcut joins your collection (kept in this browser) the first time the solver or a hint uses it. Cards show a diagram of the pattern, how often you've seen it, and **Show me** replays its first appearance.
+
+| Shortcut | Level | On % of boards* |
+|---|---|---|
+| Last square | Easy | 100 |
+| Region in one line | Easy | 100 |
+| Line inside a region | Easy | 56 |
+| Domino shadow | Medium | 78 |
+| Blocked square | Medium | 55 |
+| L-shape | Medium | 26 |
+| Offset dominoes | Medium | 13 |
+| Three in a row | Medium | 11 |
+| Pair with a gap | Medium | 8 |
+| Corner-to-corner pair | Medium | 6 |
+| Two regions, two lines | Hard | 33 |
+| Two lines, two regions | Hard | 8 |
+| Two rows, two columns | Hard | 0.7 |
+| Three-way squeeze | Expert | 11 |
+
+\*420 boards, 60 per size, from `node tools/solve.mjs --stats 60`.
+
+*Offset dominoes*: two units each down to two side-by-side squares, in neighbouring rows (or columns) and shifted by one, always take their queens on the two outer squares, because a queen on either inner square would touch both squares of the other pair. A shape shortcut is only claimed when its geometry explains every square crossed out; otherwise the step is a plain *Blocked square*.
+
+### In a terminal
+
+```sh
+node tools/solve.mjs 10-K7Q2MX        # the board, every deduction in order, and the answer
+node tools/solve.mjs --stats 200      # how often each shortcut turns up
+```
 
 ## How a board is made (`js/generator.js`)
 
@@ -43,13 +85,17 @@ Measured (Node 22, 150 boards per size): mean generation 4 ms at 8 × 8, 45 ms a
 index.html          page, controls, and the on-page explanation
 css/queens.css      layout and board (palette/type come from the Tunnel tokens)
 js/rng.js           seeded PRNG, sheet keys
-js/solver.js        exhaustive search + deduction engine
+js/solver.js        exhaustive search + deduction engine (the solver)
+js/shortcuts.js     the 14 shortcuts: classifier, diagrams, full solve traces
 js/generator.js     builds a unique, deducible board from a key
 js/palette.js       region tints and colour assignment
-js/explain.js       turns deductions into hint sentences
+js/explain.js       turns deductions into sentences
+js/board.js         draws boards and shortcut diagrams
 js/worker.js        runs the generator off the main thread
-js/game.js          board, input, clock, hints, storage
-test/engine.test.mjs
+js/game.js          Play tab: input, clock, hints, storage, tabs
+js/lab.js           Solver tab: playback, profile, shortcut collection
+tools/solve.mjs     the solver in a terminal
+test/engine.test.mjs, test/shortcuts.test.mjs
 ```
 
 ## Running and testing
@@ -61,9 +107,11 @@ python3 -m http.server 8000      # then open http://localhost:8000
 node --test                      # Node 20+; PER_SIZE=150 node --test for the long run
 ```
 
-The tests generate 25 boards per size (1,050 with `PER_SIZE=150`) and check each one: the stored answer obeys the rules, the exhaustive search finds exactly one solution, the deduction solver finishes it with every step consistent with the answer, regions are connected and within size limits, and colours are distinct. They also pin three *golden* boards: if the generator changes, those fail, because every shared key would now draw a different board. Change the generator deliberately, bump `GENERATOR_VERSION`, and update the fingerprints.
+`test/shortcuts.test.mjs` holds each shortcut to its claim: on 140 real solves, every step classifies, shape shortcuts cross out only what their geometry explains, and every *Offset dominoes* really does end with queens on the outer squares; each card's diagram is checked to show its own rule.
 
-Local assets carry `?v=1` so a fresh page never pairs with a stale cached script; bump it everywhere when shipping changes.
+The engine tests generate 25 boards per size (1,050 with `PER_SIZE=150`) and check each one: the stored answer obeys the rules, the exhaustive search finds exactly one solution, the deduction solver finishes it with every step consistent with the answer, regions are connected and within size limits, and colours are distinct. They also pin three *golden* boards: if the generator changes, those fail, because every shared key would now draw a different board. Change the generator deliberately, bump `GENERATOR_VERSION`, and update the fingerprints.
+
+Local assets carry `?v=2` so a fresh page never pairs with a stale cached script; bump it everywhere when shipping changes.
 
 ## Design
 

@@ -14,8 +14,8 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..700&family=Public+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <!-- House style (Tunnel): linked, never copied, so updates reach every page. -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/nihilisticiconoclast/cuddly-lamp@main/assets/tokens.css">
-<link rel="stylesheet" href="css/queens.css?v=1">
-<script type="module" src="js/game.js?v=1"></script>
+<link rel="stylesheet" href="css/queens.css?v=2">
+<script type="module" src="js/game.js?v=2"></script>
 </head>
 <body data-seed="queens">
 
@@ -30,7 +30,13 @@
   </nav>
 </header>
 
-<main class="game shell" id="game">
+<div class="tabs shell" role="tablist" aria-label="Mode">
+  <button class="tab" role="tab" id="tab-play" aria-controls="panel-play" aria-selected="true" type="button">Play</button>
+  <button class="tab" role="tab" id="tab-solver" aria-controls="panel-solver" aria-selected="false" tabindex="-1" type="button">Solver</button>
+</div>
+
+<main id="main">
+<section class="game shell" id="panel-play" role="tabpanel" aria-labelledby="tab-play">
 
   <section class="status" aria-label="Clock and sheet">
     <div class="clock-row">
@@ -94,7 +100,77 @@
       </dl>
     </div>
   </section>
+</section>
 
+<section class="lab shell" id="panel-solver" role="tabpanel" aria-labelledby="tab-solver" hidden>
+  <div class="status">
+    <div class="clock-row">
+      <p class="counter"><span class="clock" id="lab-count">0</span> <span class="of" id="lab-of">of 0 steps</span></p>
+    </div>
+    <div class="sheet">
+      <p class="sheet-line"><span class="label">Sheet</span> <span class="key" id="lab-key">…</span> <span class="difficulty" id="lab-difficulty"></span></p>
+      <button class="linkish" id="lab-return" type="button" hidden>Back to your sheet</button>
+    </div>
+  </div>
+
+  <div class="play">
+    <div class="board-frame" id="lab-frame">
+      <div class="refs refs-cols" aria-hidden="true"></div>
+      <div class="refs refs-rows" aria-hidden="true"></div>
+      <div class="neat">
+        <div class="board board--watch" id="lab-board" role="grid" aria-label="Solver board"></div>
+        <div class="veil" id="lab-veil" hidden><p id="lab-veil-text">Drawing a sheet</p></div>
+      </div>
+    </div>
+    <div class="narration" role="status" aria-live="polite">
+      <p class="narration-head"><span class="tag" id="lab-tag" hidden></span> <span class="new" id="lab-new" hidden>New shortcut</span></p>
+      <p class="narration-text" id="lab-text"></p>
+      <p class="chips" id="lab-summary" hidden></p>
+    </div>
+    <div class="profile" id="lab-profile" role="group" aria-label="Steps of this solve: taller bars are harder deductions"></div>
+  </div>
+
+  <div class="controls">
+    <div class="group">
+      <button class="btn btn--route btn--wide" id="lab-play" type="button">Play</button>
+      <div class="tools">
+        <button class="btn btn--tool" id="lab-back" type="button">Back</button>
+        <button class="btn btn--tool" id="lab-next" type="button">Step</button>
+        <button class="btn btn--tool" id="lab-reset" type="button">Reset</button>
+        <button class="btn btn--tool" id="lab-end" type="button">End</button>
+      </div>
+      <div class="speed">
+        <label for="lab-speed">Speed</label>
+        <input type="range" id="lab-speed" min="0" max="100" value="45">
+        <output id="lab-speed-out" for="lab-speed"></output>
+      </div>
+      <fieldset class="start">
+        <legend>Start from</legend>
+        <label class="radio"><input type="radio" name="lab-start" id="lab-start-empty" value="empty" checked><span>An empty board</span></label>
+        <label class="radio"><input type="radio" name="lab-start" id="lab-start-board" value="board"><span>Your board, as it stands</span></label>
+        <p class="note" id="lab-start-note" hidden></p>
+      </fieldset>
+    </div>
+    <div class="group">
+      <fieldset class="sizes">
+        <legend>Watch another sheet</legend>
+        <div class="size-buttons" id="lab-sizes"></div>
+      </fieldset>
+      <button class="btn btn--wide" id="lab-new-sheet" type="button">New sheet</button>
+      <p class="note">Watching the sheet you're playing counts as help: solving it afterwards won't set a best time. Another sheet leaves your game alone.</p>
+    </div>
+  </div>
+
+  <section class="shortcuts" aria-labelledby="sc-title">
+    <div class="shortcuts-head">
+      <h2 id="sc-title">Shortcuts</h2>
+      <p class="sc-count" id="sc-count">0 found</p>
+      <button class="linkish" id="sc-forget" type="button" hidden>Forget them</button>
+    </div>
+    <p class="sc-empty" id="sc-empty">Shortcuts are patterns worth recognising on sight. Each one appears here the first time the solver, or a hint, uses it. Press Play to start collecting.</p>
+    <ol class="cards" id="sc-cards"></ol>
+  </section>
+</section>
 </main>
 
 <div class="doodle" id="doodle" aria-hidden="true"></div>
@@ -119,6 +195,7 @@
       <dt>Hint</dt><dd>Points out a mistake if there is one; otherwise outlines the next deduction and explains it. Hinted solves don't set records.</dd>
       <dt>Auto-cross</dt><dd>Faintly crosses out every square your queens rule out. Faint crosses come and go with the queens.</dd>
       <dt>Pause</dt><dd>Stops the clock and hides the board. Leaving the tab pauses it too.</dd>
+      <dt>Solver</dt><dd>Watch the board solved step by step (see below). Your clock waits while you're there.</dd>
     </dl>
     <p class="keys">Keyboard: arrow keys move, Space cycles a square, X crosses, Q places a queen, Backspace clears, Ctrl+Z and Ctrl+Shift+Z undo and redo.</p>
   </section>
@@ -127,6 +204,19 @@
     <h2>Sheets</h2>
     <p>A sheet key such as <code>10-K7Q2MX</code> names a puzzle: the number is the board size and the rest is a code. The key seeds every random choice the generator makes, so the same key always draws the same board, with the same regions and colours, on any device. The address carries the key after a <code>#</code>, so a bookmark or a shared link reopens that board.</p>
     <p>Keys ignore case and punctuation, and any word will do: <code>12-gloucester</code> is as good a key as a random one. A key without a size uses the size currently selected.</p>
+  </section>
+
+  <section>
+    <h2>The solver</h2>
+    <p>The Solver tab works through a sheet the way a person would: one deduction at a time, always the easiest one available, and never a guess. Each step first outlines the rows, columns or regions it reasons about and shows in teal where it will act; then it places the queen or the crosses. A new queen's crosses ripple outward from it.</p>
+    <p>Play runs the solve and the slider sets its speed. Step, Back, Reset and End move one step or jump to either end. The strip under the board has a bar for every step, taller for harder deductions; click one to replay it. <em>Your board, as it stands</em> continues from your marks on the Play tab, as long as none of them is wrong.</p>
+    <p>Watching the sheet you're playing counts as help, so solving it afterwards won't set a best time. Watch another sheet draws a different board there without touching your game. In a terminal, <code>node tools/solve.mjs 10-K7Q2MX</code> prints the same step-by-step solution.</p>
+  </section>
+
+  <section>
+    <h2>Shortcuts</h2>
+    <p>A shortcut is a pattern worth recognising on sight. Offset dominoes is one: when two rows, columns or regions are each down to two side-by-side squares, in neighbouring lines and shifted by one, both queens go on the two outer squares, because a queen on either inner square would touch both squares of the other pair.</p>
+    <p>The solver itself knows only four general techniques. Each step it takes is matched to the most specific shortcut that fully explains it, and a shortcut joins your collection the first time you see it used, by the solver or in a hint. Each card shows the pattern, says how often you've seen it, and Show me replays its first appearance. The collection is kept in this browser.</p>
   </section>
 
   <section>
