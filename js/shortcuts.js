@@ -13,7 +13,7 @@
 //            Q = queen placed by this shortcut, '.' = nothing
 // test/shortcuts.test.mjs checks that every diagram really shows its rule.
 
-import { OPEN, QUEEN, ROW, COL, REGION, unitType, unitOf, findStep, applyStep } from './solver.js?v=2';
+import { OPEN, QUEEN, ROW, COL, REGION, unitType, unitOf, findStep, applyStep } from './solver.js?v=3';
 
 export const SHORTCUTS = [
   {

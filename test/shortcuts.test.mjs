@@ -6,9 +6,9 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { generatePuzzle } from '../js/generator.js?v=2';
-import { buildIndex, OPEN } from '../js/solver.js?v=2';
-import { SHORTCUTS, SHORTCUT, shapeOf, classifyStep, traceSolve } from '../js/shortcuts.js?v=2';
+import { generatePuzzle } from '../js/generator.js?v=3';
+import { buildIndex, OPEN } from '../js/solver.js?v=3';
+import { SHORTCUTS, SHORTCUT, shapeOf, classifyStep, traceSolve } from '../js/shortcuts.js?v=3';
 
 const PER_SIZE = Number(process.env.SHORTCUT_BOARDS || 20);
 const rc = (i, N) => [Math.floor(i / N), i % N];

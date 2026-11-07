@@ -14,8 +14,8 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..700&family=Public+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <!-- House style (Tunnel): linked, never copied, so updates reach every page. -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/nihilisticiconoclast/cuddly-lamp@main/assets/tokens.css">
-<link rel="stylesheet" href="css/queens.css?v=2">
-<script type="module" src="js/game.js?v=2"></script>
+<link rel="stylesheet" href="css/queens.css?v=3">
+<script type="module" src="js/game.js?v=3"></script>
 </head>
 <body data-seed="queens">
 
@@ -33,6 +33,7 @@
 <div class="tabs shell" role="tablist" aria-label="Mode">
   <button class="tab" role="tab" id="tab-play" aria-controls="panel-play" aria-selected="true" type="button">Play</button>
   <button class="tab" role="tab" id="tab-solver" aria-controls="panel-solver" aria-selected="false" tabindex="-1" type="button">Solver</button>
+  <button class="tab" role="tab" id="tab-training" aria-controls="panel-training" aria-selected="false" tabindex="-1" type="button">Training</button>
 </div>
 
 <main id="main">
@@ -66,6 +67,7 @@
       </div>
     </div>
     <p class="message" id="message" role="status" aria-live="polite"></p>
+    <button class="linkish review-link" id="review-link" type="button" hidden>Review this solve: where your time went</button>
   </section>
 
   <section class="controls" aria-label="Game controls">
@@ -171,6 +173,87 @@
     <ol class="cards" id="sc-cards"></ol>
   </section>
 </section>
+
+<section class="lab train shell" id="panel-training" role="tabpanel" aria-labelledby="tab-training" hidden>
+  <div class="status">
+    <div class="clock-row">
+      <p class="counter"><span class="clock" id="tr-clock">0.0</span> <span class="of">seconds</span></p>
+    </div>
+    <div class="sheet">
+      <p class="sheet-line"><span class="label">Drill</span> <span class="drill-name" id="tr-name">Choose a drill</span> <span class="difficulty" id="tr-level"></span></p>
+    </div>
+  </div>
+
+  <div class="play">
+    <div class="board-frame" id="tr-frame">
+      <div class="refs refs-cols" aria-hidden="true"></div>
+      <div class="refs refs-rows" aria-hidden="true"></div>
+      <div class="neat">
+        <div class="board board--drill" id="tr-board" role="grid" aria-label="Training board">
+        </div>
+        <div class="veil" id="tr-veil">
+          <p id="tr-veil-text">Each drill isolates one skill and times how long you take to see it.</p>
+          <div class="lesson" id="tr-lesson" hidden>
+            <p class="lesson-kicker">New skill</p>
+            <h3 id="tr-lesson-name"></h3>
+            <div id="tr-lesson-diagram"></div>
+            <p id="tr-lesson-text"></p>
+            <button class="btn btn--route" id="tr-lesson-go" type="button">Start the clock</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="narration" role="status" aria-live="polite">
+      <p class="narration-head"><span class="tag" id="tr-tag" hidden></span> <span class="new" id="tr-result" hidden></span></p>
+      <p class="narration-text" id="tr-prompt">Press Start. Mixed practice picks positions from the skills you most need, and introduces each new one with a worked example.</p>
+      <p class="narration-text feedback" id="tr-feedback"></p>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="group">
+      <button class="btn btn--route btn--wide" id="tr-next" type="button">Start</button>
+      <button class="btn btn--wide" id="tr-show" type="button" disabled>Show me</button>
+      <label class="field"><span>Drill</span>
+        <select id="tr-mode">
+          <option value="mixed">Mixed: aims at your weakest skills</option>
+          <option value="spot">Spot the key step</option>
+          <option value="opening">Opening sweep</option>
+          <option value="trial">Three-move trial</option>
+          <option value="cascade">Cascade</option>
+        </select>
+      </label>
+      <label class="field" id="tr-skill-field" hidden><span>Skill</span><select id="tr-skill"></select></label>
+    </div>
+    <div class="group">
+      <p class="note" id="tr-session">No drills yet this session.</p>
+      <p class="note" id="tr-help">Mixed practice starts with the skills you have not tried, then leans on whichever is slowest. Each drill is timed from the moment the position appears.</p>
+    </div>
+  </div>
+
+  <section class="shortcuts skills" aria-labelledby="sk-title">
+    <div class="shortcuts-head">
+      <h2 id="sk-title">Skills</h2>
+      <p class="sc-count" id="sk-count"></p>
+      <button class="linkish" id="sk-reset" type="button" hidden>Reset records</button>
+    </div>
+    <p class="sc-empty">Each skill is judged on its last ten attempts: <em>Mastered</em> means at least 80% clean and a median under target. Targets come from the 20-second budget: a 10 × 10 solved in 20 seconds leaves about 3.4 seconds per key step. The small bars are your last ten tries, taller for slower; hollow ones were misses.</p>
+    <ol class="skill-list" id="sk-list"></ol>
+  </section>
+
+  <section class="shortcuts review" id="review" aria-labelledby="rv-title">
+    <div class="shortcuts-head">
+      <h2 id="rv-title">Your last solve</h2>
+      <p class="sc-count" id="rv-meta"></p>
+    </div>
+    <p class="sc-empty" id="rv-empty">Solve a puzzle on the Play tab and it's reviewed here: how long each queen took, and for your slowest queens, the deduction that would have unlocked them.</p>
+    <div id="rv-body" hidden>
+      <div class="splits" id="rv-splits" aria-hidden="true"></div>
+      <p class="note" id="rv-summary"></p>
+      <ol class="cards" id="rv-cards"></ol>
+    </div>
+  </section>
+</section>
 </main>
 
 <div class="doodle" id="doodle" aria-hidden="true"></div>
@@ -196,6 +279,7 @@
       <dt>Auto-cross</dt><dd>Faintly crosses out every square your queens rule out. Faint crosses come and go with the queens.</dd>
       <dt>Pause</dt><dd>Stops the clock and hides the board. Leaving the tab pauses it too.</dd>
       <dt>Solver</dt><dd>Watch the board solved step by step (see below). Your clock waits while you're there.</dd>
+      <dt>Training</dt><dd>Timed drills for the individual skills, and a review of your last solve (see below).</dd>
     </dl>
     <p class="keys">Keyboard: arrow keys move, Space cycles a square, X crosses, Q places a queen, Backspace clears, Ctrl+Z and Ctrl+Shift+Z undo and redo.</p>
   </section>
@@ -217,6 +301,19 @@
     <h2>Shortcuts</h2>
     <p>A shortcut is a pattern worth recognising on sight. Offset dominoes is one: when two rows, columns or regions are each down to two side-by-side squares, in neighbouring lines and shifted by one, both queens go on the two outer squares, because a queen on either inner square would touch both squares of the other pair.</p>
     <p>The solver itself knows only four general techniques. Each step it takes is matched to the most specific shortcut that fully explains it, and a shortcut joins your collection the first time you see it used, by the solver or in a hint. Each card shows the pattern, says how often you've seen it, and Show me replays its first appearance. The collection is kept in this browser.</p>
+  </section>
+
+  <section>
+    <h2>Training</h2>
+    <p>Getting faster at Queens is mostly about seeing a handful of patterns sooner. Across a thousand boards, the hardest step usually comes early, and once the last one falls about three quarters of the queens follow mechanically. The Training tab practises those moments directly instead of whole puzzles.</p>
+    <dl class="defs">
+      <dt>Spot the key step</dt><dd>A real position just before a deduction that decides the board. Tap any square you can rule out; the clock stops on the first correct square, and the deduction is shown. Drill one named skill and only its squares count: a square some other deduction rules out gets a nudge, not a penalty.</dd>
+      <dt>Opening sweep</dt><dd>Find every region that sits in one row or column. On almost every board, that's the first move.</dd>
+      <dt>Three-move trial</dt><dd>At a hard impasse, pick which of two squares holds a queen. The wrong branch is then played out, move by move, until something runs out of squares.</dd>
+      <dt>Cascade</dt><dd>Place the forced queens at the end of a solve as fast as you can.</dd>
+      <dt>Mixed</dt><dd>Picks the skill you're weakest at, never the same twice running, and adds Hard and Expert skills as your Medium ones improve.</dd>
+    </dl>
+    <p>Each skill opens with a worked example before its first timed attempt. After a solve on the Play tab, the review shows how long each queen took and, for the slowest, the deduction that would have unlocked it, with a link to practise that skill. Records are kept in this browser.</p>
   </section>
 
   <section>

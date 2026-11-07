@@ -374,3 +374,71 @@ export function solveLogically(idx, { state = null, maxLevel = 4, maxGroup = Inf
     steps++;
   }
 }
+
+// ─── Every deduction available ─────────────────────────────────────────────
+// findStep returns only the easiest deduction. Training needs all of them,
+// so that a drill accepts any square the player can genuinely rule out.
+
+function collectGroups(idx, st, stats, k, out) {
+  const { N } = idx;
+  for (const [ta, tb] of GROUP_PAIRS) {
+    if (k === 1 && ta !== REGION && tb !== REGION) continue;
+    const units = [], masks = [];
+    for (let a = 0; a < N; a++) {
+      const u = ta * N + a;
+      if (stats.queens[u] || !stats.open[u]) continue;
+      let m = 0;
+      for (const i of idx.unitCells[u]) if (st[i] === OPEN) m |= 1 << (unitOf(idx, i, tb) - tb * N);
+      units.push(u);
+      masks.push(m);
+    }
+    if (k >= units.length) continue;
+    const chosen = [];
+    const inChosen = new Uint8Array(3 * N);
+    const dfs = (start, mask) => {
+      if (chosen.length === k) {
+        if (popcount(mask) !== k) return;
+        const cross = [];
+        for (const b of bitsOf(mask)) {
+          for (const i of idx.unitCells[tb * N + b]) if (st[i] === OPEN && !inChosen[unitOf(idx, i, ta)]) cross.push(i);
+        }
+        if (cross.length) {
+          out.push({ type: k === 1 ? 'confine' : 'group', level: k === 1 ? 1 : k === 2 ? 3 : 4,
+            units: chosen.slice(), via: bitsOf(mask).map((b) => tb * N + b), place: [], cross });
+        }
+        return;
+      }
+      for (let j = start; j < units.length; j++) {
+        const m2 = mask | masks[j];
+        if (popcount(m2) > k) continue;
+        chosen.push(units[j]); inChosen[units[j]] = 1;
+        dfs(j + 1, m2);
+        chosen.pop(); inChosen[units[j]] = 0;
+      }
+    };
+    dfs(0, 0);
+  }
+}
+
+export function findAllSteps(idx, st, { maxGroup = 3 } = {}) {
+  const { N } = idx;
+  const stats = unitStats(idx, st);
+  const out = [];
+  for (let u = 0; u < 3 * N; u++) {
+    if (!stats.queens[u] && stats.open[u] === 1) {
+      out.push({ type: 'single', level: 1, units: [u], via: [], place: [idx.unitCells[u].find((c) => st[c] === OPEN)], cross: [] });
+    }
+  }
+  for (let k = 1; k <= Math.min(maxGroup, N - 1); k++) collectGroups(idx, st, stats, k, out);
+  for (let u = 0; u < 3 * N; u++) {
+    if (stats.queens[u] || !stats.open[u]) continue;
+    const targets = idx.unitCells[u].filter((i) => st[i] === OPEN);
+    const cross = [];
+    for (const x of idx.attacks[targets[0]]) {
+      if (st[x] !== OPEN || unitOf(idx, x, unitType(idx, u)) === u) continue;
+      if (targets.every((t) => t === targets[0] || sees(idx, x, t))) cross.push(x);
+    }
+    if (cross.length) out.push({ type: 'attack', level: 2, units: [u], via: [], place: [], cross });
+  }
+  return out;
+}

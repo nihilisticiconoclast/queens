@@ -1,7 +1,7 @@
 // explain.js — turns solver output into sentences a player can act on.
 
-import { PALETTE } from './palette.js?v=2';
-import { unitType, unitNumber, ROW, COL } from './solver.js?v=2';
+import { PALETTE } from './palette.js?v=3';
+import { unitType, unitNumber, ROW, COL } from './solver.js?v=3';
 
 export const colLetter = (c) => String.fromCharCode(65 + c);
 export const cellRef = (i, N) => `${colLetter(i % N)}${Math.floor(i / N) + 1}`;

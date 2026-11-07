@@ -19,9 +19,9 @@
 // Typical cost (Node 22): 8×8 ≈ 5 ms, 12×12 ≈ 50 ms, 14×14 ≈ 120 ms, worst
 // seen ≈ 0.5 s. The page runs it in a Web Worker regardless.
 
-import { createRng, formatKey, MIN_SIZE, MAX_SIZE } from './rng.js?v=2';
-import { buildIndex, countSolutions, findSolutions, solveLogically, OPEN } from './solver.js?v=2';
-import { assignColours } from './palette.js?v=2';
+import { createRng, formatKey, MIN_SIZE, MAX_SIZE } from './rng.js?v=3';
+import { buildIndex, countSolutions, findSolutions, solveLogically, OPEN } from './solver.js?v=3';
+import { assignColours } from './palette.js?v=3';
 
 export const GENERATOR_VERSION = 1;
 export const DIFFICULTY = ['', 'Easy', 'Medium', 'Hard', 'Expert'];
