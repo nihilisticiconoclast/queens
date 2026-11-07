@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Queens</title>
+<meta name="description" content="Place one queen in every row, column and colour region, with no two touching. Endless puzzles from 8 × 8 to 14 × 14, each with exactly one solution, and a sheet key that reopens any board.">
+<meta name="theme-color" content="#EDE7D3">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' fill='%23EDE7D3'/%3E%3Cpath fill='%234A3823' d='M4 17.2 3.3 8.4l4.6 3.3L12 5.6l4.1 6.1 4.6-3.3-.7 8.8ZM4.2 18.5h15.6v2.2H4.2Z'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- House style (Tunnel): linked, never copied, so updates reach every page. -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/nihilisticiconoclast/cuddly-lamp@main/assets/tokens.css">
+<link rel="stylesheet" href="css/queens.css?v=1">
+<script type="module" src="js/game.js?v=1"></script>
+</head>
+<body data-seed="queens">
+
+<header class="masthead shell">
+  <a class="brand" href="./">
+    <span class="sig" id="sig" aria-hidden="true"></span>
+    <span class="title">Queens</span>
+  </a>
+  <nav class="nav" aria-label="Page">
+    <a href="#how">How to play</a>
+    <a href="https://github.com/nihilisticiconoclast/queens">Source</a>
+  </nav>
+</header>
+
+<main class="game shell" id="game">
+
+  <section class="status" aria-label="Clock and sheet">
+    <div class="clock-row">
+      <span class="clock" id="clock" role="timer" aria-label="Time on this puzzle">0:00</span>
+      <button class="btn btn--quiet" id="pause" type="button">Pause</button>
+    </div>
+    <div class="sheet">
+      <p class="sheet-line"><span class="label">Sheet</span> <span class="key" id="sheet-key">…</span> <span class="difficulty" id="difficulty"></span></p>
+      <button class="linkish" id="copy" type="button">Copy link</button>
+    </div>
+  </section>
+
+  <section class="play" aria-label="Puzzle">
+    <div class="board-frame" id="board-frame">
+      <div class="refs refs-cols" id="refs-cols" aria-hidden="true"></div>
+      <div class="refs refs-rows" id="refs-rows" aria-hidden="true"></div>
+      <div class="neat">
+        <div class="board" id="board" role="grid" aria-label="Queens board"></div>
+        <div class="veil" id="veil">
+          <p id="veil-text">Drawing a sheet</p>
+          <button class="btn" id="veil-btn" type="button" hidden>Resume</button>
+        </div>
+        <div class="stamp" id="stamp" hidden aria-hidden="true">
+          <span class="stamp-word">Solved</span>
+          <span class="stamp-time" id="stamp-time"></span>
+        </div>
+      </div>
+    </div>
+    <p class="message" id="message" role="status" aria-live="polite"></p>
+  </section>
+
+  <section class="controls" aria-label="Game controls">
+    <div class="group group-sheet">
+      <fieldset class="sizes">
+        <legend>Board size</legend>
+        <div class="size-buttons" id="sizes"></div>
+      </fieldset>
+      <button class="btn btn--route btn--wide" id="new" type="button">New puzzle</button>
+      <form class="open" id="open-form" autocomplete="off">
+        <label for="sheet-input">Open a sheet</label>
+        <div class="open-row">
+          <input id="sheet-input" name="sheet" type="text" spellcheck="false" autocapitalize="characters" placeholder="12-K7Q2MX or any word">
+          <button class="btn" type="submit">Open</button>
+        </div>
+        <p class="form-error" id="open-error" role="alert" hidden></p>
+      </form>
+    </div>
+    <div class="group group-play">
+      <div class="tools">
+        <button class="btn btn--tool" id="undo" type="button">Undo</button>
+        <button class="btn btn--tool" id="redo" type="button">Redo</button>
+        <button class="btn btn--tool" id="clear" type="button">Clear</button>
+        <button class="btn btn--tool" id="hint" type="button">Hint</button>
+      </div>
+      <label class="toggle"><input type="checkbox" id="auto"><span>Auto-cross: faintly cross out every square a queen rules out</span></label>
+    </div>
+    <div class="group group-record">
+      <dl class="record">
+        <div><dt id="best-label">Best</dt><dd id="best">—</dd></div>
+        <div><dt id="solved-label">Solved</dt><dd id="solved-count">0</dd></div>
+      </dl>
+    </div>
+  </section>
+
+</main>
+
+<div class="doodle" id="doodle" aria-hidden="true"></div>
+
+<article class="notes shell" id="how">
+  <section>
+    <h2>How to play</h2>
+    <p>Every row, every column and every coloured region needs exactly one queen, and no two queens may touch, not even corner to corner.</p>
+    <p>Tap a square once to cross it out, again to place a queen, and a third time to clear it. Drag across squares to cross out a run of them. Crosses are notes to yourself: the puzzle is solved the moment the last queen lands in the right place, whatever else is marked.</p>
+    <p>Each board has exactly one solution, and it can always be reached by reasoning alone. You never need to guess.</p>
+  </section>
+
+  <section>
+    <h2>Controls</h2>
+    <dl class="defs">
+      <dt>New puzzle</dt><dd>A fresh random sheet at the selected size.</dd>
+      <dt>Board size</dt><dd>8 × 8 up to 14 × 14. Choosing a size starts a new puzzle.</dd>
+      <dt>Copy link</dt><dd>Copies an address that opens this exact sheet.</dd>
+      <dt>Open a sheet</dt><dd>Loads the puzzle for a sheet key. Any word works as a key.</dd>
+      <dt>Undo, Redo</dt><dd>Step back and forward through your moves. A whole drag counts as one move.</dd>
+      <dt>Clear</dt><dd>Empties the board; the clock keeps running. After a solve it becomes Replay, which also resets the clock.</dd>
+      <dt>Hint</dt><dd>Points out a mistake if there is one; otherwise outlines the next deduction and explains it. Hinted solves don't set records.</dd>
+      <dt>Auto-cross</dt><dd>Faintly crosses out every square your queens rule out. Faint crosses come and go with the queens.</dd>
+      <dt>Pause</dt><dd>Stops the clock and hides the board. Leaving the tab pauses it too.</dd>
+    </dl>
+    <p class="keys">Keyboard: arrow keys move, Space cycles a square, X crosses, Q places a queen, Backspace clears, Ctrl+Z and Ctrl+Shift+Z undo and redo.</p>
+  </section>
+
+  <section>
+    <h2>Sheets</h2>
+    <p>A sheet key such as <code>10-K7Q2MX</code> names a puzzle: the number is the board size and the rest is a code. The key seeds every random choice the generator makes, so the same key always draws the same board, with the same regions and colours, on any device. The address bar carries the key, so a bookmark or a shared link reopens that board.</p>
+    <p>Keys ignore case and punctuation, and any word will do: <code>12-gloucester</code> is as good a key as a random one. A key without a size uses the size currently selected.</p>
+  </section>
+
+  <section>
+    <h2>How each puzzle is made</h2>
+    <p>The answer comes first. The generator places the queens at random, never sharing a row or column and never touching, then grows one region outward from each queen. The answer is now certain to be valid, but it is almost never the only one: a fresh 14 × 14 layout typically admits thousands of others.</p>
+    <p>An exhaustive search then finds those rival answers. Any square where a rival puts a queen and the real answer doesn't can be handed to a neighbouring region, which kills every rival using that square and leaves the real answer intact. The generator repeats this, always aiming at the squares most rivals share, until the search proves the answer is the only one.</p>
+    <p>Finally a second solver works the board the way a person would, using only the deductions listed under Difficulty. If it stalls, the generator reshapes a region at the sticking point and checks everything again. A board is shown only once it has a single answer that reasoning alone can reach. All of this runs in your browser, usually in a fraction of a second.</p>
+  </section>
+
+  <section>
+    <h2>Difficulty</h2>
+    <p>The label beside the sheet key names the hardest deduction the board needs. A square is available until it is crossed out or a queen rules it out.</p>
+    <dl class="defs">
+      <dt>Easy</dt><dd>A row, column or region has one available square left; or all of a region's available squares lie in one row or column, so the rest of that line can be crossed out.</dd>
+      <dt>Medium</dt><dd>A queen on some square would leave a row, column or region with nowhere to go, so that square can be crossed out.</dd>
+      <dt>Hard</dt><dd>Two regions fit entirely inside the same two rows or columns (or the reverse), so nothing else can use them.</dd>
+      <dt>Expert</dt><dd>The same, with three.</dd>
+    </dl>
+  </section>
+
+  <section>
+    <h2>What's exact and what isn't</h2>
+    <p>Exact: every board has one solution, confirmed by exhaustive search; the deductions above are enough to reach it; and a sheet key always gives the same board.</p>
+    <p>Judgement calls: the difficulty label counts techniques, not minutes, so a large Easy board can still take a while. Regions are kept between two squares and three times the board's width, so none is a free queen and none swallows the board. Best times and solve counts are stored in this browser only.</p>
+  </section>
+</article>
+
+<footer class="foot shell">
+  <p>Generator v1. Every puzzle is built in your browser. <a href="https://github.com/nihilisticiconoclast/queens">Source and tests on GitHub</a>.</p>
+</footer>
+
+<noscript><p class="shell">Queens needs JavaScript to draw and check its puzzles.</p></noscript>
+<script async id="tunnel-js" src="https://cdn.jsdelivr.net/gh/nihilisticiconoclast/cuddly-lamp@main/assets/tunnel-figure.js"></script>
+</body>
+</html>

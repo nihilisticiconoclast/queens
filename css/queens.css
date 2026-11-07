@@ -1,0 +1,317 @@
+/* queens.css — page layout and the board. Palette, type and hard edges come
+   from the Tunnel tokens (linked from the CDN in index.html).
+
+   The fallbacks below sit on `html`, which tokens.css's `:root` outranks, so
+   they only apply if the CDN copy fails to load. */
+html {
+  --paper: #EDE7D3; --ink: #4A3823; --contour: #7A5C3E; --index: #5A4225;
+  --incident: #3E7C8C; --route: #C0432B;
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-body: "Public Sans", system-ui, -apple-system, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --rule: 1px solid color-mix(in srgb, var(--contour) 38%, transparent);
+  --gutter: clamp(16px, 4vw, 48px);
+  --panel: 300px;
+  --gap: clamp(28px, 4vw, 60px);
+}
+/* Component fallbacks at zero specificity: tokens.css's own .btn / h2 rules
+   always win when it loads; these only show if it doesn't. */
+:where(.btn) {
+  display: inline-block; font-family: var(--font-body); font-size: 1rem; line-height: 1.2;
+  padding: .8rem 1.4rem; border-radius: 0; border: 1px solid var(--index);
+  background: transparent; color: var(--ink); cursor: pointer;
+}
+:where(.btn--route) { background: var(--route); border-color: var(--route); color: var(--paper); }
+:where(.btn:focus-visible) { outline: 2px solid var(--incident); outline-offset: 3px; }
+:where(h1, h2, h3) { font-family: var(--font-display); font-weight: 560; line-height: 1.05; }
+:where(a) { color: var(--incident); text-underline-offset: 2px; }
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0;
+  overflow-x: clip; /* the house doodle bleeds into the gutter; never let it scroll sideways */
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+.shell { max-width: 1180px; margin-inline: auto; padding-inline: var(--gutter); }
+[hidden] { display: none !important; }
+
+/* ─── Masthead ─────────────────────────────────────────────────────────── */
+.masthead {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  padding-block: 16px 12px;
+  border-bottom: var(--rule);
+}
+.brand { display: flex; align-items: center; gap: .7rem; color: inherit; text-decoration: none; }
+.brand .sig { width: 52px; line-height: 0; }
+.brand .sig:empty { display: none; }
+.title {
+  font-family: var(--font-display); font-weight: 560; letter-spacing: -.012em;
+  font-size: clamp(1.8rem, 1.3rem + 1.5vw, 2.5rem); line-height: 1;
+  font-variation-settings: "opsz" 144;
+}
+.nav { display: flex; gap: 1.25rem; font-size: .92rem; }
+.nav a { color: var(--contour); }
+.nav a:hover { color: var(--ink); }
+
+/* ─── Layout ───────────────────────────────────────────────────────────── */
+.game {
+  display: grid;
+  grid-template-columns: auto var(--panel);
+  grid-template-areas: "play status" "play controls";
+  grid-template-rows: auto 1fr;
+  justify-content: center;
+  column-gap: var(--gap);
+  row-gap: 22px;
+  padding-block: clamp(18px, 3vw, 36px) clamp(28px, 4vw, 48px);
+}
+.play { grid-area: play; min-width: 0; }
+.status { grid-area: status; display: grid; gap: 14px; align-content: start; padding-top: 1.35rem; }
+.controls { grid-area: controls; display: grid; gap: 18px; align-content: start; }
+.group { display: grid; gap: 16px; }
+.group + .group { border-top: var(--rule); padding-top: 18px; }
+
+/* ─── Board frame: grid references + neatline ─────────────────────────── */
+.board-frame {
+  --refs: 1.3rem;
+  --board: clamp(272px, min(640px,
+             calc(100vw - 2 * var(--gutter) - var(--panel) - var(--gap) - var(--refs) - 14px),
+             calc(100svh - 150px)), 640px);
+  display: grid;
+  grid-template-columns: var(--refs) auto;
+  grid-template-rows: var(--refs) auto;
+}
+.refs {
+  display: grid;
+  font-family: var(--font-data);
+  font-size: clamp(.6rem, calc(var(--board) / var(--n, 8) * .26), .78rem);
+  color: var(--contour);
+  font-variant-numeric: tabular-nums;
+}
+.refs-cols {
+  grid-column: 2; grid-row: 1;
+  grid-template-columns: repeat(var(--n, 8), 1fr);
+  padding-inline: 6px; padding-bottom: 2px;
+  align-items: end; justify-items: center;
+}
+.refs-rows {
+  grid-column: 1; grid-row: 2;
+  grid-template-rows: repeat(var(--n, 8), 1fr);
+  padding-block: 6px; padding-right: 6px;
+  align-items: center; justify-items: end;
+}
+.neat { grid-column: 2; grid-row: 2; position: relative; padding: 5px; border: 1px solid var(--contour); }
+
+/* ─── The board ────────────────────────────────────────────────────────── */
+.board {
+  --glyph-crown: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3.6 17.2 2.6 7.9l5 3.6L12 4.9l4.4 6.6 5-3.6-1 9.3ZM3.8 18.6h16.4V21H3.8ZM.95 6.9a1.6 1.6 0 1 0 3.2 0 1.6 1.6 0 1 0-3.2 0ZM10.3 3.6a1.7 1.7 0 1 0 3.4 0 1.7 1.7 0 1 0-3.4 0ZM19.85 6.9a1.6 1.6 0 1 0 3.2 0 1.6 1.6 0 1 0-3.2 0Z'/%3E%3C/svg%3E");
+  --glyph-x: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 4 20 20M20 4 4 20' stroke='black' stroke-width='3.2'/%3E%3C/svg%3E");
+  --heavy: clamp(1.6px, calc(var(--board) / var(--n) / 21), 3px);
+  position: relative;
+  width: var(--board);
+  aspect-ratio: 1;
+  display: grid;
+  grid-template-columns: repeat(var(--n), 1fr);
+  grid-template-rows: repeat(var(--n), 1fr);
+  background: var(--paper);
+  touch-action: none;
+  user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
+.row { display: contents; }
+.cell { position: relative; background: var(--tint); outline: none; }
+.cell::before, .cell::after { content: ""; position: absolute; inset: 0; pointer-events: none; }
+
+/* Marks are masks filled with ink, so one glyph can take any colour. */
+.cell::after {
+  background: var(--mark, var(--ink));
+  -webkit-mask: var(--glyph, none) center / var(--glyph-size, 50%) no-repeat;
+  mask: var(--glyph, none) center / var(--glyph-size, 50%) no-repeat;
+  opacity: 0;
+  transform: scale(.55);
+  transition: none; /* marks vanish at once: a fade would flash the unmasked square */
+}
+.cell.is-cross::after, .cell.is-queen::after, .cell.is-auto::after {
+  transform: none;
+  transition: opacity .12s ease, transform .18s cubic-bezier(.3, 1.5, .55, 1);
+}
+.cell.is-cross::after { --glyph: var(--glyph-x); --glyph-size: 34%; opacity: .78; }
+.cell.is-queen::after { --glyph: var(--glyph-crown); --glyph-size: 64%; opacity: 1; animation: pop .22s cubic-bezier(.3, 1.6, .55, 1); }
+.cell.is-auto::after  { --glyph: var(--glyph-x); --glyph-size: 26%; opacity: .32; }
+@keyframes pop { from { transform: scale(.6); } }
+
+/* A broken rule hatches the offending row, column or region, map-style. */
+.cell.is-clash::before {
+  background: repeating-linear-gradient(135deg,
+    color-mix(in srgb, var(--ink) 55%, transparent) 0 1.5px, transparent 1.5px 6px);
+}
+
+/* Hints: a teal wash and outline on the units involved, teal marks on the
+   squares to act on. */
+.cell.hint-focus::before { background: color-mix(in srgb, var(--incident) 16%, transparent); }
+.cell.hint-queen::after { --glyph: var(--glyph-crown); --glyph-size: 64%; --mark: var(--incident); opacity: .7; transform: none; animation: breathe 1.4s ease-in-out infinite; }
+.cell.hint-cross::after { --glyph: var(--glyph-x); --glyph-size: 34%; --mark: var(--incident); opacity: 1; transform: none; }
+.cell.hint-ring::before { border: 3px solid var(--incident); }
+@keyframes breathe { 50% { opacity: .35; } }
+
+.cell:focus-visible { z-index: 2; box-shadow: inset 0 0 0 2px var(--ink), inset 0 0 0 4px var(--paper); }
+
+.board-lines, .hint-lines {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  pointer-events: none; overflow: visible;
+}
+.board-lines .grid { fill: none; stroke: color-mix(in srgb, var(--index) 32%, transparent); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.board-lines .bounds { fill: none; stroke: var(--ink); stroke-width: var(--heavy); stroke-linecap: square; vector-effect: non-scaling-stroke; }
+.hint-lines path { fill: none; stroke: var(--incident); stroke-width: 3px; stroke-linecap: square; vector-effect: non-scaling-stroke; }
+
+/* Solved: one wave of crowns, row by row. */
+.board.is-solved { cursor: default; }
+.board.is-solved .cell.is-queen::after { animation: crown .7s cubic-bezier(.3, 1.6, .5, 1) both; animation-delay: calc(var(--r) * 55ms); }
+.board.is-solved .cell.is-cross::after, .board.is-solved .cell.is-auto::after { opacity: .14; transition: opacity .8s ease; }
+@keyframes crown { 40% { transform: scale(1.32); } }
+
+/* Paused / drawing: the board is covered, not just dimmed. */
+.veil {
+  position: absolute; inset: 5px; z-index: 5;
+  display: grid; place-content: center; justify-items: center; gap: 1rem;
+  background: var(--paper); text-align: center; padding: 1rem;
+}
+.veil p { margin: 0; font-family: var(--font-display); font-size: clamp(1.3rem, 1rem + 1.2vw, 1.8rem); color: var(--index); }
+
+/* The surveyor's stamp. */
+.stamp {
+  position: absolute; z-index: 4;
+  display: grid; justify-items: center; gap: .1rem;
+  padding: .45rem 1.1rem .5rem;
+  border: 4px double var(--index);
+  color: var(--index);
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  transform: rotate(-7deg);
+  pointer-events: none;
+}
+.stamp[data-corner="br"] { right: 6%; bottom: 7%; }
+.stamp[data-corner="bl"] { left: 6%; bottom: 7%; }
+.stamp[data-corner="tr"] { right: 6%; top: 7%; }
+.stamp[data-corner="tl"] { left: 6%; top: 7%; }
+.stamp-word { font-family: var(--font-display); font-style: italic; font-weight: 600; font-size: clamp(1.3rem, .9rem + 1.6vw, 2.1rem); line-height: 1.05; }
+.stamp-time { font-family: var(--font-data); font-size: .9rem; font-variant-numeric: tabular-nums; }
+.stamp.is-in { animation: stamp .45s cubic-bezier(.2, 1.3, .45, 1) both .45s; }
+@keyframes stamp { from { opacity: 0; transform: rotate(-7deg) scale(1.7); } }
+
+.message { min-height: 3.1em; margin: .85rem 0 0; max-width: 64ch; font-size: .98rem; }
+.message[data-tone="hint"] { color: var(--ink); border-left: 3px solid var(--incident); padding-left: .75rem; }
+.message[data-tone="win"] { font-family: var(--font-display); font-size: 1.15rem; }
+.message.is-nudged { animation: nudge .35s ease; }
+@keyframes nudge { 30% { transform: translateX(4px); } 60% { transform: translateX(-2px); } }
+
+/* ─── Status and controls ──────────────────────────────────────────────── */
+.clock-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.clock {
+  font-family: var(--font-data); font-weight: 500; line-height: 1;
+  font-size: clamp(2rem, 1.6rem + 1.4vw, 2.7rem); letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+}
+.btn--quiet { padding: .5rem .95rem; font-size: .92rem; }
+.sheet { display: flex; align-items: baseline; justify-content: space-between; gap: .4rem 1rem; flex-wrap: wrap; }
+.sheet-line { margin: 0; display: flex; align-items: baseline; gap: .55rem; flex-wrap: wrap; max-width: none; }
+.label, legend, .open label { font-size: .88rem; color: var(--contour); }
+.key { font-family: var(--font-data); font-weight: 500; font-size: 1.02rem; letter-spacing: .02em; word-break: break-all; }
+.difficulty { font-size: .88rem; color: var(--contour); border: 1px solid color-mix(in srgb, var(--contour) 50%, transparent); padding: 0 .4rem; }
+.difficulty:empty { display: none; }
+.linkish {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font: inherit; font-size: .9rem; color: var(--incident);
+  text-decoration: underline; text-underline-offset: 2px; text-decoration-thickness: 1px;
+}
+.linkish:hover { color: var(--route); }
+.rule { margin: 2px 0; border: 0; border-top: var(--rule); }
+
+.sizes { border: 0; margin: 0; padding: 0; min-width: 0; }
+legend { padding: 0; margin-bottom: .45rem; }
+.size-buttons { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.size-buttons button {
+  font-family: var(--font-data); font-size: .95rem; padding: .55rem 0;
+  border: 1px solid var(--index); border-radius: 0; background: transparent; color: var(--ink);
+  cursor: pointer; transition: background-color .12s ease, color .12s ease;
+}
+.size-buttons button:hover { background: color-mix(in srgb, var(--index) 10%, transparent); }
+.size-buttons button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.size-buttons button:focus-visible, .linkish:focus-visible, .open input:focus-visible, .toggle input:focus-visible {
+  outline: 2px solid var(--incident); outline-offset: 2px;
+}
+.btn--wide { width: 100%; }
+
+.open label { display: block; margin-bottom: .4rem; }
+.open-row { display: flex; gap: 6px; }
+.open input {
+  flex: 1; min-width: 0; border-radius: 0;
+  font-family: var(--font-data); font-size: .95rem; padding: .6rem .7rem;
+  border: 1px solid var(--index); color: var(--ink);
+  background: color-mix(in srgb, var(--paper) 60%, #fff);
+}
+.open input::placeholder { color: color-mix(in srgb, var(--contour) 75%, transparent); }
+.open .btn { padding: .6rem 1rem; }
+.form-error { margin: .45rem 0 0; font-size: .88rem; }
+
+.tools { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.btn--tool { padding: .6rem 0; font-size: .92rem; text-align: center; }
+.btn:disabled { opacity: .38; cursor: default; transform: none; }
+.toggle { display: flex; gap: .6rem; align-items: flex-start; font-size: .9rem; cursor: pointer; line-height: 1.4; }
+.toggle input { accent-color: var(--ink); width: 1.05rem; height: 1.05rem; margin: .1rem 0 0; flex: none; }
+.record { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem 1rem; margin: 0; }
+.record dt { font-size: .85rem; color: var(--contour); }
+.record dd { margin: 0; font-family: var(--font-data); font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+
+/* ─── Notes ────────────────────────────────────────────────────────────── */
+.notes {
+  border-top: var(--rule);
+  padding-block: clamp(20px, 4vw, 48px);
+  columns: 2 30rem;
+  column-gap: var(--gap);
+}
+.notes section { max-width: 66ch; break-inside: avoid; padding-bottom: .6rem; }
+.notes h2 { font-size: var(--step-2, 1.6rem); margin: 1.2rem 0 .6rem; }
+.notes p { margin: 0 0 .9em; }
+.defs { margin: 0 0 1em; display: grid; grid-template-columns: max-content 1fr; gap: .45rem 1.1rem; }
+.defs dt { font-weight: 600; }
+.defs dd { margin: 0; }
+.keys { font-size: .92rem; color: var(--contour); }
+.notes code { white-space: nowrap; font-family: var(--font-data); font-size: .9em; background: color-mix(in srgb, var(--contour) 12%, transparent); padding: .05em .35em; }
+.foot { border-top: var(--rule); padding-block: 18px 36px; font-size: .88rem; color: var(--contour); }
+.foot p { margin: 0; max-width: none; }
+
+/* ─── Narrow screens: clock above the board, controls below ───────────── */
+@media (max-width: 880px) {
+  .game {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "status" "play" "controls";
+    grid-template-rows: auto;
+    row-gap: 14px;
+  }
+  .status { padding-top: 0; grid-template-columns: 1fr auto; align-items: center; gap: 6px 12px; }
+  .clock-row { gap: .8rem; justify-content: flex-start; }
+  .sheet { justify-content: flex-end; text-align: right; }
+  .sheet-line { justify-content: flex-end; }
+  .board-frame { --board: min(calc(100vw - 2 * var(--gutter) - var(--refs) - 14px), 620px); justify-content: center; }
+  .controls { max-width: 560px; }
+  /* Undo and Hint move up, right under the board. */
+  .group-play { order: -1; border-top: 0; padding-top: 0; }
+  .group-sheet { border-top: var(--rule); padding-top: 18px; }
+  .message { min-height: 2.6em; }
+}
+@media (max-width: 520px) {
+  html { --gutter: 12px; }
+  .board-frame { --refs: 1.05rem; }
+  .nav a[href="#how"] { display: none; }
+  .defs { grid-template-columns: 1fr; gap: .1rem; }
+  .defs dd { margin-bottom: .5rem; }
+  .status { grid-template-columns: 1fr; }
+  .sheet { justify-content: space-between; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
