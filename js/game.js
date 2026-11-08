@@ -1,12 +1,13 @@
 // game.js — the page: the Play tab (board, marking, clock, sheets, hints,
 // saved progress) and the switch to the Solver tab (lab.js).
 
-import { MIN_SIZE, MAX_SIZE, randomCode, parseKey, formatKey } from './rng.js?v=2';
-import { buildIndex, findStep, applyQueen, CROSS } from './solver.js?v=2';
-import { describeStep, describeClash, cellRef } from './explain.js?v=2';
-import { classifyStep, SHORTCUT } from './shortcuts.js?v=2';
-import { BoardView } from './board.js?v=2';
-import { createLab, noteShortcut } from './lab.js?v=2';
+import { MIN_SIZE, MAX_SIZE, randomCode, parseKey, formatKey } from './rng.js?v=3';
+import { buildIndex, findStep, applyQueen, CROSS } from './solver.js?v=3';
+import { describeStep, describeClash, cellRef } from './explain.js?v=3';
+import { classifyStep, SHORTCUT } from './shortcuts.js?v=3';
+import { BoardView } from './board.js?v=3';
+import { createLab, noteShortcut } from './lab.js?v=3';
+import { createTraining } from './training.js?v=3';
 
 const EMPTY = 0, X = 1, Q = 2;                 // what the player has put on a square
 const cycle = (m) => (m + 1) % 3;              // tap: empty → cross → queen → empty
@@ -36,7 +37,9 @@ const ui = {
   copy: $('copy'), sizes: $('sizes'), newBtn: $('new'), openForm: $('open-form'), openInput: $('sheet-input'),
   openError: $('open-error'), undo: $('undo'), redo: $('redo'), clear: $('clear'), hint: $('hint'),
   auto: $('auto'), bestLabel: $('best-label'), best: $('best'), solvedLabel: $('solved-label'), solvedCount: $('solved-count'),
-  tabs: { play: $('tab-play'), solver: $('tab-solver') }, panels: { play: $('panel-play'), solver: $('panel-solver') },
+  tabs: { play: $('tab-play'), solver: $('tab-solver'), training: $('tab-training') },
+  panels: { play: $('panel-play'), solver: $('panel-solver'), training: $('panel-training') },
+  reviewLink: $('review-link'),
 };
 const playView = new BoardView(ui.frame);
 
@@ -50,6 +53,15 @@ let cursor = 0, loadToken = 0, drag = null;
 // this sheet, or it's a replay of a sheet already solved.
 let helped = { solver: false, replay: false };
 let tab = 'play', clockWasRunning = false;
+// Every change to the board with the puzzle-clock time it happened, so the
+// Training tab can review where a solve's time went.
+let moveLog = [];
+const MAX_LOG = 1500;
+function logChanges(changes, revert = false) {
+  const t = Math.round(elapsedNow());
+  for (const [i, from, to] of changes) moveLog.push([t, i, revert ? from : to]);
+  if (moveLog.length > MAX_LOG) moveLog.splice(0, moveLog.length - MAX_LOG);
+}
 
 const N = () => puzzle.size;
 const canPlay = () => puzzle && !solved && !paused && !loading;
@@ -78,7 +90,7 @@ let worker = null, workerBroken = false, requestId = 0;
 const pending = new Map();
 
 function mainThread(size, code) {
-  return import('./generator.js?v=2').then((m) => m.generatePuzzle(size, code));
+  return import('./generator.js?v=3').then((m) => m.generatePuzzle(size, code));
 }
 
 // Each tab asks on its own channel. A newer request on a channel supersedes
@@ -95,7 +107,7 @@ function makePuzzle(size, code, channel = 'play') {
   }
   if (!workerBroken && !worker) {
     try {
-      worker = new Worker(new URL('./worker.js?v=2', import.meta.url), { type: 'module' });
+      worker = new Worker(new URL('./worker.js?v=3', import.meta.url), { type: 'module' });
       for (const [id, job] of pending) worker.postMessage({ id, size: job.size, code: job.code });
       worker.onmessage = ({ data }) => {
         const job = pending.get(data.id);
@@ -167,6 +179,8 @@ function startGame(p, restore) {
   elapsed = restore?.elapsed > 0 ? restore.elapsed : 0;
   hintsUsed = restore?.hints > 0 ? restore.hints : 0;
   helped = { solver: !!restore?.helped?.solver, replay: !!restore?.helped?.replay };
+  moveLog = Array.isArray(restore?.log) ? restore.log.slice(-MAX_LOG) : [];
+  ui.reviewLink.hidden = true;
   settings.size = p.size;
   saveSettings();
   cursor = 0;
@@ -272,6 +286,7 @@ function setMark(i, to, changes) {
 
 function commit(changes) {
   if (!changes.length) return;
+  logChanges(changes);
   undoStack.push(changes);
   redoStack = [];
   afterChange();
@@ -288,6 +303,7 @@ function undo() {
   if (!canPlay() || !undoStack.length) return;
   const ch = undoStack.pop();
   for (let k = ch.length - 1; k >= 0; k--) marks[ch[k][0]] = ch[k][1];
+  logChanges(ch, true);
   redoStack.push(ch);
   afterChange();
 }
@@ -296,6 +312,7 @@ function redo() {
   if (!canPlay() || !redoStack.length) return;
   const ch = redoStack.pop();
   for (const [i, , to] of ch) marks[i] = to;
+  logChanges(ch);
   undoStack.push(ch);
   afterChange();
 }
@@ -307,6 +324,8 @@ function clearBoard() {
     undoStack = []; redoStack = [];
     solved = false; elapsed = 0; hintsUsed = 0; hint = null;
     helped.replay = true;
+    moveLog = [];
+    ui.reviewLink.hidden = true;
     ui.board.classList.remove('is-solved');
     ui.stamp.hidden = true;
     ui.stamp.classList.remove('is-in');
@@ -541,6 +560,9 @@ function checkWin() {
   else text += `. Your best for ${n} × ${n} is ${formatTime(previousBest)}.`;
   setMessage(text, 'win');
 
+  store.set('queens.lastSolve', { id: Date.now(), key: puzzle.key, size: n, time, log: moveLog, hints: hintsUsed, helped });
+  training.refreshReview();
+  ui.reviewLink.hidden = false;
   ui.board.classList.add('is-solved');
   ui.stamp.dataset.corner = quietestCorner();
   ui.stampTime.textContent = formatTime(time);
@@ -632,6 +654,7 @@ function saveGame() {
     elapsed: Math.round(elapsedNow()),
     hints: hintsUsed,
     helped,
+    log: moveLog,
     solved,
   });
 }
@@ -752,8 +775,22 @@ const lab = createLab({
   },
 });
 
+const training = createTraining({
+  frame: $('tr-frame'), board: $('tr-board'), veil: $('tr-veil'), veilText: $('tr-veil-text'),
+  lesson: $('tr-lesson'), lessonName: $('tr-lesson-name'), lessonText: $('tr-lesson-text'), lessonDiagram: $('tr-lesson-diagram'), lessonGo: $('tr-lesson-go'),
+  clock: $('tr-clock'), name: $('tr-name'), level: $('tr-level'), tag: $('tr-tag'), result: $('tr-result'),
+  prompt: $('tr-prompt'), feedback: $('tr-feedback'), next: $('tr-next'), show: $('tr-show'),
+  mode: $('tr-mode'), skill: $('tr-skill'), skillField: $('tr-skill-field'), session: $('tr-session'), help: $('tr-help'),
+  skillList: $('sk-list'), skillCount: $('sk-count'), skillReset: $('sk-reset'),
+  review: $('review'), rvEmpty: $('rv-empty'), rvBody: $('rv-body'), rvMeta: $('rv-meta'), rvSplits: $('rv-splits'), rvSummary: $('rv-summary'), rvCards: $('rv-cards'),
+}, {
+  makePuzzle: (size, code, channel) => makePuzzle(size, code, channel),
+  lastSolve: () => store.get('queens.lastSolve', null),
+});
+
 function showTab(name) {
   if (name === tab) return;
+  const from = tab;
   tab = name;
   for (const k of Object.keys(ui.tabs)) {
     const on = k === name;
@@ -761,23 +798,27 @@ function showTab(name) {
     ui.tabs[k].tabIndex = on ? 0 : -1;
     ui.panels[k].hidden = !on;
   }
-  if (name === 'solver') {
-    clockWasRunning = runningSince != null;   // your clock waits while you watch
-    stopClock();
-    lab.activate();
-  } else {
+  if (name === 'play') {
     lab.deactivate();
+    training.deactivate();
     if (clockWasRunning && !paused && !solved && !loading) startClock();
     render();
+    return;
   }
+  if (from === 'play') { clockWasRunning = runningSince != null; stopClock(); } // your clock waits elsewhere
+  if (name === 'solver') { training.deactivate(); lab.activate(); }
+  else { lab.deactivate(); training.activate(); }
 }
+
+ui.reviewLink.addEventListener('click', () => { showTab('training'); training.showReview(); });
 
 for (const [name, el] of Object.entries(ui.tabs)) {
   el.addEventListener('click', () => showTab(name));
   el.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
       e.preventDefault();
-      const next = name === 'play' ? 'solver' : 'play';
+      const order = Object.keys(ui.tabs);
+      const next = order[(order.indexOf(name) + (e.key === 'ArrowRight' ? 1 : order.length - 1)) % order.length];
       showTab(next);
       ui.tabs[next].focus();
     }
@@ -820,6 +861,7 @@ window.queens = {
     key: puzzle.key, size: puzzle.size, solved, paused, loading, hintsUsed,
     elapsed: Math.round(elapsedNow()), marks: Array.from(marks).join(''), regions: puzzle.regions.join(','),
     engine: workerBroken || !worker ? 'main thread' : 'worker',
-    tab, helped: { ...helped }, lab: lab.state,
+    tab, helped: { ...helped }, lab: lab.state, training: training.state, logLength: moveLog.length,
   },
+  drill: () => training.debug,
 };

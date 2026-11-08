@@ -2,8 +2,8 @@
 // references, marks and highlights. Used by both the Play and Solver tabs,
 // and (at miniature scale) by the shortcut diagrams.
 
-import { PALETTE } from './palette.js?v=2';
-import { cellRef, colLetter, regionName } from './explain.js?v=2';
+import { PALETTE } from './palette.js?v=3';
+import { cellRef, colLetter, regionName } from './explain.js?v=3';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const MARK_WORDS = ['empty', 'crossed out', 'queen'];
@@ -166,4 +166,28 @@ export function diagramSVG(spec, cellSize = 25) {
     }
   }
   return `<svg class="diagram" viewBox="-0.08 -0.08 ${w + 0.16} ${h + 0.16}" width="${w * cellSize}" height="${h * cellSize}" role="img" aria-hidden="true">${parts.join('')}</svg>`;
+}
+
+// A small static picture of a real board position (for the review cards):
+// tints, borders, marks, plus a teal outline and teal ghost marks.
+export function snapshotSVG(puzzle, state, { focus = [], ghostCrosses = [], ghostQueens = [] } = {}, cellSize = 15) {
+  const n = puzzle.size, reg = puzzle.regions;
+  const parts = [];
+  for (let i = 0; i < n * n; i++) {
+    parts.push(`<rect x="${i % n}" y="${Math.floor(i / n)}" width="1" height="1" fill="${PALETTE[puzzle.colours[reg[i]]].hex}"/>`);
+  }
+  parts.push(`<path class="d-grid" d="${edgeRuns(n, n, (a, b) => reg[a] === reg[b])}"/>`);
+  parts.push(`<path class="d-bounds" d="${edgeRuns(n, n, (a, b) => reg[a] !== reg[b])}M0 0H${n}V${n}H0Z"/>`);
+  const gx = new Set(ghostCrosses), gq = new Set(ghostQueens);
+  const cross = (c, r, cls) => `<path class="${cls}" d="M${c + 0.3} ${r + 0.3}L${c + 0.7} ${r + 0.7}M${c + 0.7} ${r + 0.3}L${c + 0.3} ${r + 0.7}"/>`;
+  const crown = (c, r, cls) => `<path class="${cls}" transform="translate(${c + 0.11} ${r + 0.1}) scale(${0.78 / 24})" d="${CROWN}"/>`;
+  for (let i = 0; i < n * n; i++) {
+    const r = Math.floor(i / n), c = i % n;
+    if (state[i] === 2) parts.push(crown(c, r, 'd-q'));
+    else if (gq.has(i)) parts.push(crown(c, r, 'd-q is-new'));
+    else if (gx.has(i)) parts.push(cross(c, r, 'd-x is-new'));
+    else if (state[i] === 1) parts.push(cross(c, r, 'd-x'));
+  }
+  if (focus.length) parts.push(`<path class="d-focus" d="${outlinePath(n, new Set(focus))}"/>`);
+  return `<svg class="diagram snapshot" viewBox="-0.1 -0.1 ${n + 0.2} ${n + 0.2}" width="${n * cellSize}" height="${n * cellSize}" role="img" aria-hidden="true">${parts.join('')}</svg>`;
 }

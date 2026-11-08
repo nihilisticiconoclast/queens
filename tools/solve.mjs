@@ -5,12 +5,12 @@
 //   node tools/solve.mjs --stats 200        how often each shortcut turns up (8×8–14×14)
 //   node tools/solve.mjs --stats 200 12 14  …for chosen sizes only
 
-import { generatePuzzle } from '../js/generator.js?v=2';
-import { buildIndex } from '../js/solver.js?v=2';
-import { SHORTCUTS, SHORTCUT, traceSolve } from '../js/shortcuts.js?v=2';
-import { describeStep, colLetter } from '../js/explain.js?v=2';
-import { PALETTE } from '../js/palette.js?v=2';
-import { parseKey, MIN_SIZE, MAX_SIZE } from '../js/rng.js?v=2';
+import { generatePuzzle } from '../js/generator.js?v=3';
+import { buildIndex } from '../js/solver.js?v=3';
+import { SHORTCUTS, SHORTCUT, traceSolve } from '../js/shortcuts.js?v=3';
+import { describeStep, colLetter } from '../js/explain.js?v=3';
+import { PALETTE } from '../js/palette.js?v=3';
+import { parseKey, MIN_SIZE, MAX_SIZE } from '../js/rng.js?v=3';
 
 const args = process.argv.slice(2);
 

@@ -5,11 +5,11 @@
 // another sheet (New sheet, a size, "Show me" on a shortcut card) without
 // touching your game; "Back to your sheet" returns it.
 
-import { buildIndex, OPEN } from './solver.js?v=2';
-import { SHORTCUTS, SHORTCUT, traceSolve } from './shortcuts.js?v=2';
-import { describeStep } from './explain.js?v=2';
-import { BoardView, diagramSVG } from './board.js?v=2';
-import { MIN_SIZE, MAX_SIZE, randomCode, formatKey, parseKey } from './rng.js?v=2';
+import { buildIndex, OPEN } from './solver.js?v=3';
+import { SHORTCUTS, SHORTCUT, traceSolve } from './shortcuts.js?v=3';
+import { describeStep } from './explain.js?v=3';
+import { BoardView, diagramSVG } from './board.js?v=3';
+import { MIN_SIZE, MAX_SIZE, randomCode, formatKey, parseKey } from './rng.js?v=3';
 
 const LEVEL = ['', 'Easy', 'Medium', 'Hard', 'Expert'];
 const INTRO = 'The solver makes one deduction at a time, always the easiest one available, and never guesses. Press Play to watch, or Step to go at your own pace.';

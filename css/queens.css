@@ -35,6 +35,11 @@ body {
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
 }
+/* Buttons give their own press feedback; the browser's blue tap flash is off-palette. */
+button, .btn { -webkit-tap-highlight-color: transparent; }
+/* The doodle lives in the margin. A phone has no margin, so it would sit behind
+   the clock and the text; leave it out there. */
+@media (max-width: 720px) { .doodle { display: none; } }
 .shell { max-width: 1180px; margin-inline: auto; padding-inline: var(--gutter); }
 [hidden] { display: none !important; }
 
@@ -178,7 +183,7 @@ body {
 
 /* Paused / drawing: the board is covered, not just dimmed. */
 .veil {
-  position: absolute; inset: 5px; z-index: 5;
+  position: absolute; inset: 3px; z-index: 5; /* covers the outline's outer half-stroke too */
   display: grid; place-content: center; justify-items: center; gap: 1rem;
   background: var(--paper); text-align: center; padding: 1rem;
 }
@@ -352,6 +357,57 @@ legend { padding: 0; margin-bottom: .45rem; }
 .diagram .d-q { fill: var(--ink); }
 .diagram .d-q.is-new { fill: var(--incident); }
 
+/* ─── Training panel ───────────────────────────────────────────────────── */
+.train { grid-template-areas: "play status" "play controls" "skills skills" "review review"; grid-template-rows: auto 1fr auto auto; }
+.train .skills { grid-area: skills; }
+.train .review { grid-area: review; }
+/* These span both columns; without containment their long lines would widen
+   the board's column and pull the grid references off the squares. */
+.train .skills, .train .review { contain: inline-size; }
+.drill-name { font-weight: 600; }
+.cell.is-wrong::before { animation: wrongflash .6s ease; }
+@keyframes wrongflash { 0%, 35% { background: color-mix(in srgb, var(--ink) 38%, transparent); } }
+.feedback { min-height: 1.5em; }
+.lesson { max-width: 30rem; text-align: left; display: grid; gap: .55rem; justify-items: start; }
+.lesson-kicker { margin: 0; font-size: .85rem; color: var(--incident); font-family: var(--font-body) !important; }
+.lesson h3 { font-family: var(--font-display); font-size: 1.5rem; margin: 0; }
+.lesson p { font-family: var(--font-body); font-size: .98rem; color: var(--ink); margin: 0; }
+.veil > p#tr-veil-text { font-size: 1.1rem; max-width: 26rem; }
+.field { display: grid; gap: .3rem; font-size: .88rem; color: var(--contour); }
+.field select {
+  font: inherit; font-size: .95rem; color: var(--ink); padding: .55rem .6rem; border-radius: 0;
+  border: 1px solid var(--index); background: color-mix(in srgb, var(--paper) 60%, #fff);
+}
+.field select:focus-visible { outline: 2px solid var(--incident); outline-offset: 2px; }
+#tr-show.is-nudged { border-color: var(--incident); color: var(--incident); animation: nudge .35s ease; }
+.review-link { margin-top: .2rem; }
+
+.skill-list { list-style: none; margin: 0; padding: 0; }
+.skill {
+  display: grid; grid-template-columns: minmax(12rem, 1.3fr) 6.5rem minmax(14rem, 2fr) 7rem auto; gap: .4rem 1rem;
+  align-items: center; padding: .6rem 0; border-bottom: var(--rule);
+}
+.skill-name strong { font-weight: 600; }
+.skill-stat { font-size: .86rem; color: var(--contour); }
+.pill { justify-self: start; font-size: .8rem; padding: 0 .5rem; line-height: 1.6; border: 1px solid color-mix(in srgb, var(--contour) 55%, transparent); color: var(--contour); }
+.skill[data-status="new"] .pill { border-style: dashed; }
+.skill[data-status="improving"] .pill { border-color: var(--index); color: var(--ink); }
+.skill[data-status="mastered"] .pill { border-color: var(--incident); color: var(--paper); background: var(--incident); }
+.mini { display: inline-flex; align-items: flex-end; gap: 2px; height: 22px; }
+.mini i { display: block; width: 6px; height: calc(var(--h) * 100%); }
+.mini i.ok { background: var(--index); }
+.mini i.miss { border: 1px solid var(--contour); }
+
+.splits {
+  display: flex; align-items: flex-end; gap: 3px; height: 72px; margin: .4rem 0 .5rem;
+  border-bottom: 1px solid var(--contour); max-width: 640px;
+}
+.split { flex: 1 1 0; max-width: 30px; height: calc(var(--h) * 100%); background: color-mix(in srgb, var(--contour) 40%, transparent); }
+.split.is-slow { background: var(--amber); }
+.review-card { grid-template-columns: auto 1fr; }
+.review-card .linkish { text-align: left; }
+.diagram .d-focus { fill: none; stroke: var(--incident); stroke-width: .14; stroke-linecap: square; }
+
 /* ─── Notes ────────────────────────────────────────────────────────────── */
 .notes {
   border-top: var(--rule);
@@ -379,6 +435,9 @@ legend { padding: 0; margin-bottom: .45rem; }
     row-gap: 14px;
   }
   .lab { grid-template-columns: minmax(0, 1fr); grid-template-areas: "status" "play" "controls" "shortcuts"; grid-template-rows: auto; row-gap: 14px; }
+  .train { grid-template-areas: "status" "play" "controls" "skills" "review"; }
+  .skill { grid-template-columns: 1fr auto; }
+  .skill-stat { grid-column: 1 / -1; }
   .profile { max-width: none; }
   .status { padding-top: 0; grid-template-columns: 1fr auto; align-items: center; gap: 6px 12px; }
   .clock-row { gap: .8rem; justify-content: flex-start; }
